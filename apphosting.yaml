@@ -1,0 +1,39 @@
+# Firebase App Hosting Configuration
+# See https://firebase.google.com/docs/app-hosting/configure
+
+# Runtime environment
+runConfig:
+  # The region to deploy the Cloud Run service.
+  region: us-central1
+  # The CPU and memory to allocate to each instance.
+  cpu: 1
+  memoryMiB: 512
+  # The concurrency and max instances settings.
+  concurrency: 80
+  minInstances: 0
+  maxInstances: 10
+
+# Environment variables
+# PUBLIC_ variables will be available on the client and server.
+# Others will only be available on the server.
+env:
+  - variable: PORT
+    value: 8080
+  - variable: HOST
+    value: 0.0.0.0
+  - variable: NODE_ENV
+    value: production
+  - variable: PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyD7Kcfxy-jAtrH69MWKWR3M8ft1LDmccso"
+  - variable: PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "toyotausados.firebaseapp.com"
+  - variable: PUBLIC_FIREBASE_PROJECT_ID
+    value: "toyotausados"
+  - variable: PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "toyotausados.firebasestorage.app"
+  - variable: PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "308604847797"
+  - variable: PUBLIC_FIREBASE_APP_ID
+    value: "1:308604847797:web:f8e583ee15c785546ee0fc"
+  - variable: PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: "G-GVW40Q3LX2"

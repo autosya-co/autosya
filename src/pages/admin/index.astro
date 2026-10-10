@@ -1,0 +1,250 @@
+---
+// src/pages/admin/index.astro
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+
+export const prerender = false;
+
+// Basic security check (SSR)
+const isDev = import.meta.env.DEV;
+// In production, we'd check a session cookie or header. 
+// For now, we rely on client-side check + environment awareness.
+---
+
+<Layout title="AI Agent Constructor - Admin">
+  <Navbar />
+  
+  <div class="max-w-6xl mx-auto px-4 py-10">
+    <div class="flex flex-col md:flex-row gap-8">
+      
+      <!-- Panel de Control -->
+      <div class="flex-1 space-y-6">
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg">
+              <i data-lucide="bot" class="w-7 h-7 text-white"></i>
+            </div>
+            <div>
+              <h1 class="text-2xl font-black text-gray-900 tracking-tight">Agente Constructor IA</h1>
+              <p class="text-sm text-gray-500 font-medium">Edita el código fuente usando Gemini 2.0 Flash</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Archivo a Editar</label>
+              <div class="relative">
+                <i data-lucide="file-code" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input 
+                  type="text" 
+                  id="filePath" 
+                  value="src/pages/index.astro"
+                  placeholder="ej: src/pages/index.astro"
+                  class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Instrucción / Prompt</label>
+              <textarea 
+                id="prompt" 
+                rows="4"
+                placeholder="Ej: Modifica el Hero para que el botón de WhatsApp sea color verde esmeralda y añade una animación de rebote."
+                class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm leading-relaxed"
+              ></textarea>
+            </div>
+
+            <div class="pt-4 border-t border-gray-100">
+              <button 
+                type="button"
+                onclick="document.getElementById('advancedConfig').classList.toggle('hidden')"
+                class="text-xs font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest flex items-center gap-2"
+              >
+                <i data-lucide="settings" class="w-3 h-3"></i>
+                Configuración Avanzada (Debug)
+              </button>
+              
+              <div id="advancedConfig" class="hidden mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <div class="md:col-span-2">
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Gemini API Key (AI Studio)</label>
+                  <input type="password" id="cfg_apiKey" placeholder="AIzaSy..." class="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Model ID</label>
+                  <input type="text" id="cfg_modelId" value="gemini-1.5-flash" class="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button 
+                id="btnPreview"
+                class="flex-1 bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <i data-lucide="eye" class="w-5 h-5"></i>
+                Previsualizar Cambio
+              </button>
+              <button 
+                id="btnPush"
+                disabled
+                class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-200 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <i data-lucide="git-pull-request" class="w-5 h-5"></i>
+                Hacer Push a Producción
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Consola de Estado -->
+        <div class="bg-black rounded-2xl p-6 shadow-2xl border border-gray-800 font-mono text-xs">
+          <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-2">
+            <span class="text-green-400 font-bold flex items-center gap-2">
+              <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              RECEPTOR_IA_READY
+            </span>
+            <span class="text-gray-500">v1.4 // Google AI</span>
+          </div>
+          <div id="console" class="space-y-2 h-32 overflow-y-auto text-gray-300">
+            <div class="text-gray-500">> Esperando instrucciones...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview de Código -->
+      <div class="w-full md:w-1/2 flex flex-col">
+        <div class="bg-gray-900 rounded-2xl flex-grow flex flex-col shadow-2xl border border-gray-800 overflow-hidden">
+          <div class="bg-gray-800 px-6 py-3 border-b border-gray-700 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Vista Previa del Código</span>
+            <div class="flex gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+            </div>
+          </div>
+          <pre id="codePreview" class="p-6 text-sm text-green-300 overflow-auto flex-grow font-mono whitespace-pre-wrap leading-relaxed">
+// El código generado aparecerá aquí...</pre>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script>
+    // Security Check
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('isAdmin') !== 'true') {
+      const isDev = window.location.hostname === 'localhost';
+      if (!isDev) {
+        window.location.href = '/';
+      }
+    }
+
+    const consoleEl = document.getElementById('console');
+    const previewEl = document.getElementById('codePreview');
+    const btnPreview = document.getElementById('btnPreview');
+    const btnPush = document.getElementById('btnPush');
+    const promptInput = document.getElementById('prompt');
+    const fileInput = document.getElementById('filePath');
+
+    // Cfg Inputs
+    const cfgApiKey = document.getElementById('cfg_apiKey');
+    const cfgModelId = document.getElementById('cfg_modelId');
+
+    let lastGeneratedCode = '';
+
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      const colors = {
+        info: 'text-blue-400',
+        success: 'text-green-400',
+        error: 'text-red-400',
+        warn: 'text-amber-400'
+      };
+      div.className = colors[type];
+      div.innerHTML = `<span class="text-gray-600">></span> ${message}`;
+      consoleEl.appendChild(div);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    async function callAgent(action) {
+      const prompt = promptInput.value;
+      const filePath = fileInput.value;
+
+      if (!prompt) {
+        log('Error: Ingresa un prompt', 'error');
+        return;
+      }
+
+      const config = {
+        apiKey: cfgApiKey.value,
+        modelId: cfgModelId.value
+      };
+
+      btnPreview.disabled = true;
+      btnPush.disabled = true;
+      log(`Iniciando acción: ${action}...`, 'info');
+      log(`Conf: API_KEY present, Model=${config.modelId}`, 'warn');
+
+      try {
+        const res = await fetch('/api/ai-agent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, filePath, action, config })
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          log(`Error: ${data.details || data.error}`, 'error');
+        } else {
+          log(data.message || 'Código generado con éxito', 'success');
+          previewEl.textContent = data.code;
+          lastGeneratedCode = data.code;
+          
+          if (action === 'preview') {
+            btnPush.disabled = false;
+          }
+        }
+      } catch (err) {
+        log(`Error fatal: ${err.message}`, 'error');
+      } finally {
+        btnPreview.disabled = false;
+      }
+    }
+
+    btnPreview.addEventListener('click', () => callAgent('preview'));
+    btnPush.addEventListener('click', () => {
+      if (confirm('¿Estás seguro de pushear este cambio directamente a GitHub?')) {
+        callAgent('push');
+      }
+    });
+
+    // Initialize Lucide icons
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  </script>
+
+  <style is:inline>
+    /* Custom Scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+    
+    pre {
+      scrollbar-width: thin;
+      scrollbar-color: #374151 #111827;
+    }
+  </style>
+</Layout>

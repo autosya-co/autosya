@@ -1,0 +1,533 @@
+---
+export const prerender = false; // SSR: no pre-renderizar, generar en el servidor
+
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+
+const { id } = Astro.params;
+
+let carro: any = null;
+try {
+  let paramId = id;
+  // Búsqueda del ID como String
+  let q = query(collection(db, "toyotausados"), where("ID", "==", String(paramId).trim()));
+  let snapshot = await getDocs(q);
+  
+  // Respaldo en caso de que esté guardado como Número
+  if (snapshot.empty && !isNaN(Number(paramId))) {
+    q = query(collection(db, "toyotausados"), where("ID", "==", Number(paramId)));
+    snapshot = await getDocs(q);
+  }
+  
+  if (!snapshot.empty) {
+    carro = snapshot.docs[0].data();
+  }
+} catch (e) {
+  console.error("Error obteniendo vehiculo desde Firebase:", e);
+}
+
+// Si no se encuentra el vehículo → 404
+if (!carro) {
+  return Astro.redirect('/404');
+}
+const idNum = Number(carro.ID) || 0;
+const isApproved = carro.publicado === true || carro.publicado === "true";
+const esPendiente = idNum > 42300 ? !isApproved : (carro.publicado === false || carro.publicado === "false");
+
+const formatearDinero = (cantidad: any) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(cantidad) || 0);
+const formatearKm = (km: any) =>
+  km ? new Intl.NumberFormat('es-CO').format(Number(km)) + ' km' : '0 km';
+
+let idsDrive: string[] = [];
+if (carro.Images) {
+  idsDrive = carro.Images.split('|').map((id: string) => id.trim()).filter((id: string) => id !== '');
+}
+
+const mensaje = encodeURIComponent(`Hola, estoy interesado en el vehículo *${carro.Title}* que vi en toyotausados.com.`);
+const urlWhatsapp = 'https://wa.me/573202832616?text=' + mensaje;
+const anio = carro.a_o || '-';
+const totalImagenes = idsDrive.length;
+const descripcionMeta = `${carro.Title} — ${anio}, ${formatearKm(carro.Mileage)}, ${carro.Transmission || ''} ${carro['Fuel'] || ''}. Precio: ${formatearDinero(carro.Price)}. Toyota Usados Colombia.`;
+
+// Obtener vehículos relacionados (Random de los últimos 25)
+const slugify = (t: any) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
+
+let relacionados: any[] = [];
+try {
+  const qRel = query(
+    collection(db, "toyotausados"), 
+    orderBy("ID", "desc"), 
+    limit(30)
+  );
+  const snapRel = await getDocs(qRel);
+  relacionados = snapRel.docs
+    .map(doc => ({ firebaseId: doc.id, ...doc.data() }))
+    .filter(c => {
+      const idNumRel = Number(c.ID) || 0;
+      const isApprovedRel = c.publicado === true || c.publicado === "true";
+      const esPendienteRel = idNumRel > 42300 ? !isApprovedRel : (c.publicado === false || c.publicado === "false");
+      return !esPendienteRel && String(c.ID) !== String(carro.ID);
+    });
+  
+  // Mezclar y tomar 8
+  relacionados = relacionados.sort(() => 0.5 - Math.random()).slice(0, 8);
+} catch (e) {
+  console.error("Error cargando relacionados:", e);
+}
+---
+
+<Layout title={`${carro.Title} | Toyota Usados`}>
+  <Fragment slot="head">
+    <meta name="description" content={descripcionMeta} />
+    <meta property="og:title" content={`${carro.Title} | Toyota Usados`} />
+    <meta property="og:description" content={descripcionMeta} />
+    {idsDrive[0] && <meta property="og:image" content={`https://drive.google.com/thumbnail?id=${idsDrive[0]}&sz=w1200`} />}
+    <meta property="og:type" content="product" />
+  </Fragment>
+
+  <Navbar />
+  
+  {esPendiente && (
+    <div class="bg-amber-50 border-b border-amber-200 py-3 px-4 text-center sticky top-[72px] z-40">
+      <div class="max-w-6xl mx-auto flex items-center justify-center gap-2 text-amber-800 font-bold text-sm">
+        <i data-lucide="clock" class="w-4 h-4"></i>
+        <span>Esta publicación está PENDIENTE DE APROBACIÓN y solo es visible mediante este enlace directo.</span>
+      </div>
+    </div>
+  )}
+
+  <!-- Estructura Principal Unificada -->
+  <div class="max-w-6xl mx-auto md:px-6 lg:px-8 md:py-10">
+    <div class="bg-white md:rounded-2xl md:shadow-xl overflow-hidden">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2">
+        
+        <!-- ─── Columna Izquierda: Carrusel ─── -->
+        <div class="w-full">
+          {totalImagenes > 0 ? (
+            <div class="flex flex-col">
+              <!-- Imagen Principal / Track -->
+              <div class="relative bg-gray-900 md:rounded-tl-2xl overflow-hidden cursor-pointer group" 
+                   style="aspect-ratio: 4/3;" 
+                   id="openLightbox">
+                
+                <div class="carousel-track flex h-full transition-transform duration-500 ease-in-out">
+                  {idsDrive.map((driveId, i) => (
+                    <div class="w-full h-full flex-shrink-0 flex items-center justify-center bg-gray-900/50"
+                      style="min-width: 100%;">
+                      <img
+                        src={`https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`}
+                        alt={carro.Title}
+                        class="max-w-full max-h-full w-auto h-auto object-contain select-none transition-transform duration-700 md:group-hover:scale-105"
+                        referrerpolicy="no-referrer"
+                        loading={i === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {totalImagenes > 1 && (
+                  <>
+                    <button class="carousel-prev absolute left-3 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 backdrop-blur-sm md:opacity-0 md:group-hover:opacity-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button class="carousel-next absolute right-3 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 backdrop-blur-sm md:opacity-0 md:group-hover:opacity-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </>
+                )}
+
+                <div class="absolute bottom-4 right-4 bg-black/60 text-white text-[11px] px-3 py-1.5 rounded-lg z-10 backdrop-blur-xl border border-white/10 font-bold tracking-widest shadow-lg">
+                  <span class="carousel-current text-red-400">1</span> / {totalImagenes}
+                </div>
+                
+                <!-- Fullscreen Hint (Desktop only) -->
+                <div class="hidden md:flex absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center pointer-events-none">
+                  <div class="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Miniaturas (Solo Desktop) -->
+              {totalImagenes > 1 && (
+                <div class="hidden md:flex gap-2 overflow-x-auto p-4 bg-gray-50 border-t border-gray-100 scrollbar-none snap-x">
+                  {idsDrive.map((driveId, i) => (
+                    <button 
+                      class={`thumb-btn flex-shrink-0 w-20 aspect-video rounded-lg overflow-hidden border-2 transition-all snap-start ${i === 0 ? 'border-red-600' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                      data-index={i}
+                    >
+                      <img 
+                        src={`https://drive.google.com/thumbnail?id=${driveId}&sz=w300`} 
+                        class="w-full h-full object-cover" 
+                        alt={`Miniatura ${i + 1}`}
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div class="aspect-[4/3] bg-gray-100 flex items-center justify-center text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <!-- ─── Columna Derecha: Información ─── -->
+        <div class="p-6 md:p-10 flex flex-col">
+          <!-- Título y Precio -->
+          <div class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight">
+              {carro.Title}
+            </h1>
+            <div class="flex items-center justify-between gap-4">
+              <div class="text-4xl font-extrabold text-red-700 tracking-tight">
+                {formatearDinero(carro.Price)}
+              </div>
+              
+              <!-- Botón Editar (Solo visible para Autor/Admin) -->
+              <a href={`/edit?id=${carro.ID}`} 
+                 id="editButton" 
+                 class="hidden items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                 data-author={carro.usuario || carro.Usuario || carro.user_email || carro['correo usuario'] || carro['correo_usuario'] || carro.correo || ""}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                <span>Editar</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Specs principales -->
+          <div class="grid grid-cols-2 gap-3 mb-8">
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+              <span class="text-[10px] text-gray-400 font-black uppercase block mb-1 tracking-widest">Año</span>
+              <span class="font-bold text-gray-800 text-lg">{anio}</span>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+              <span class="text-[10px] text-gray-400 font-black uppercase block mb-1 tracking-widest">Kilometraje</span>
+              <span class="font-bold text-gray-800 text-lg">{formatearKm(carro.Mileage)}</span>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+              <span class="text-[10px] text-gray-400 font-black uppercase block mb-1 tracking-widest">Transmisión</span>
+              <span class="font-bold text-gray-800 text-lg capitalize">{carro.Transmission || carro.transmision || '-'}</span>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+              <span class="text-[10px] text-gray-400 font-black uppercase block mb-1 tracking-widest">Combustible</span>
+              <span class="font-bold text-gray-800 text-lg capitalize">{carro.Fuel || carro.combustible || '-'}</span>
+            </div>
+          </div>
+
+          <!-- Más especificaciones -->
+          <h4 class="font-black text-gray-900 border-b-2 border-gray-100 pb-2 mb-4 uppercase text-[10px] tracking-[0.2em]">
+            Especificaciones Técnicas
+          </h4>
+          <ul class="text-sm text-gray-700 space-y-3 mb-8">
+            <li class="flex justify-between items-center border-b border-gray-50 pb-2">
+              <span class="font-medium text-gray-500">Motor:</span>
+              <span class="font-bold text-gray-900 bg-gray-100 px-3 py-0.5 rounded-lg">{carro.Engine || '-'}</span>
+            </li>
+            <li class="flex justify-between items-center border-b border-gray-50 pb-2">
+              <span class="font-medium text-gray-500">Color:</span>
+              <span class="font-bold text-gray-900 bg-gray-100 px-3 py-0.5 rounded-lg">{carro.color_ || '-'}</span>
+            </li>
+            <li class="flex justify-between items-center border-b border-gray-50 pb-2">
+              <span class="font-medium text-gray-500">Placa:</span>
+              <span class="font-bold text-gray-900 bg-gray-100 px-3 py-0.5 rounded-lg">Termina en {(carro.Plate_last_digit !== undefined && carro.Plate_last_digit !== null) ? carro.Plate_last_digit : '-'}</span>
+            </li>
+            <li class="flex justify-between items-center border-b border-gray-50 pb-2">
+              <span class="font-medium text-gray-500">Ciudad placa:</span>
+              <span class="font-bold text-gray-900 bg-gray-100 px-3 py-0.5 rounded-lg capitalize">{carro.ciudad_de_la_placa || '-'}</span>
+            </li>
+          </ul>
+
+          <!-- Descripción -->
+          <h4 class="font-black text-gray-900 border-b-2 border-gray-100 pb-2 mb-4 uppercase text-[10px] tracking-[0.2em]">
+            Descripción del Vendedor
+          </h4>
+          <div class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed bg-red-50/30 p-5 rounded-2xl border border-red-100/50 italic mb-8 relative">
+            <div class="absolute -top-3 -left-1 text-red-200">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H15.017C14.4647 8 14.017 7.55228 14.017 7V5C14.017 4.44772 14.4647 4 15.017 4H19.017C21.2261 4 23.017 5.79086 23.017 8V15C23.017 18.3137 20.3307 21 17.017 21H14.017ZM1.017 21L1.017 18C1.017 16.8954 1.91243 16 3.017 16H6.017C6.56928 16 7.017 15.5523 7.017 15V9C7.017 8.44772 6.56928 8 6.017 8H2.017C1.46472 8 1.017 7.55228 1.017 7V5C1.017 4.44772 1.46472 4 2.017 4H6.017C8.2261 4 10.017 5.79086 10.017 8V15C10.017 18.3137 7.33071 21 4.017 21H1.017Z"/></svg>
+            </div>
+            {carro.Content || 'Sin descripción adicional.'}
+          </div>
+
+          <!-- Botón de Acción -->
+          <a
+            href={urlWhatsapp}
+            target="_blank"
+            class="mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 w-full text-lg group">
+            <span class="transition-transform group-hover:scale-110">💬</span>
+            Contactar Vendedor
+          </a>
+        </div>
+
+    </div>
+  </div>
+
+  <!-- ─── Publicaciones Relacionadas (Carrusel) ─── -->
+  {relacionados.length > 0 && (
+    <div class="max-w-6xl mx-auto px-4 md:px-8 py-12 mb-10 overflow-hidden">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h3 class="text-2xl font-black text-gray-900 tracking-tight">Publicaciones Relacionadas</h3>
+          <div class="h-1 w-12 bg-red-600 mt-2 rounded-full"></div>
+        </div>
+        
+        <!-- Controles Carrusel (Escritorio) -->
+        <div class="hidden md:flex gap-3">
+          <button id="relPrev" class="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-700 hover:border-red-600 hover:bg-red-50 transition-all shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button id="relNext" class="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-700 hover:border-red-600 hover:bg-red-50 transition-all shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Track Horizontal Scroll -->
+      <div id="relTrack" class="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 scrollbar-hide scroll-smooth no-scrollbar">
+        {relacionados.map((rel) => {
+          let relImg = 'https://via.placeholder.com/400x300?text=Toyota';
+          if (rel.Images) {
+            const firstId = rel.Images.split('|')[0]?.trim();
+            if (firstId) relImg = `https://drive.google.com/thumbnail?id=${firstId}&sz=w400`;
+          }
+          const relSlug = `/${rel.ID}/${slugify(rel.Title)}`;
+          const relAnio = rel.a_o || rel.Anio || rel.Año || '-';
+          
+          return (
+            <a href={relSlug} class="min-w-[75%] md:min-w-[calc(25%-15px)] flex-shrink-0 snap-start group">
+              <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full ring-1 ring-gray-900/5">
+                <!-- Imagen -->
+                <div class="aspect-[4/3] relative overflow-hidden bg-gray-100">
+                  <img src={relImg} alt={rel.Title} class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerpolicy="no-referrer" loading="lazy" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+                
+                <!-- Info -->
+                <div class="p-5 flex flex-col flex-grow">
+                  <h4 class="font-bold text-gray-900 text-sm line-clamp-2 mb-2 group-hover:text-red-700 transition-colors">
+                    {rel.Title}
+                  </h4>
+                  <div class="mt-auto">
+                    <div class="text-lg font-black text-red-700 mb-1">
+                      {formatearDinero(rel.Price)}
+                    </div>
+                    <div class="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <span>{relAnio}</span>
+                      <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                      <span>{formatearKm(rel.Mileage)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  )}
+
+
+  <!-- ─── Lightbox Modal (Fullscreen) ─── -->
+  <div id="lightbox" class="fixed inset-0 z-[100] bg-black hidden flex-col transition-opacity duration-300 opacity-0 pointer-events-none select-none" style="height: 100dvh;">
+    
+    <!-- Header (Z-120) -->
+    <div class="absolute top-0 inset-x-0 z-[120] flex justify-between items-center px-6 py-4 bg-gradient-to-b from-black/80 to-transparent pointer-events-auto">
+      <div class="text-white font-bold text-sm md:text-lg truncate max-w-[70%] drop-shadow-md">
+        {carro.Title} <span class="text-[10px] opacity-30 font-normal ml-2">v2.5</span>
+      </div>
+      <button id="closeLightbox" class="text-white hover:text-red-500 transition-colors p-2 bg-black/20 rounded-full backdrop-blur-md border border-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-grow relative w-full h-full overflow-hidden">
+       <!-- Navigation Buttons (Z-110) -->
+       <button id="lbPrev" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all z-[110] backdrop-blur-sm border border-white/10 group pointer-events-auto">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+       </button>
+       <button id="lbNext" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all z-[110] backdrop-blur-sm border border-white/10 group pointer-events-auto">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+       </button>
+
+       <!-- Track -->
+       <div id="lbTrack" class="flex h-full transition-transform duration-300 ease-out" style="width: 100%;">
+         {idsDrive.map((driveId) => (
+           <div class="flex-shrink-0 w-full h-full flex items-center justify-center p-4 md:p-10 lg:p-16">
+              <img
+                src={`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`}
+                class="max-w-full max-h-full w-auto h-auto object-contain select-none shadow-2xl transition-opacity duration-300 pointer-events-none"
+                referrerpolicy="no-referrer"
+                loading="lazy"
+              />
+           </div>
+         ))}
+       </div>
+    </div>
+
+    <!-- Footer Indicators (Z-120) -->
+    <div class="absolute bottom-0 inset-x-0 z-[120] py-8 flex flex-col items-center gap-3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+      <div class="text-white/60 text-[10px] font-bold tracking-widest uppercase">
+        Imagen <span id="lbCurrent" class="text-white">1</span> / {totalImagenes}
+      </div>
+      <div class="flex gap-2 px-4 pointer-events-auto">
+         {idsDrive.map((_, i) => (
+            <div data-lb-index={i} class={`lb-dot w-2 h-2 rounded-full transition-all duration-300 ${i === 0 ? 'bg-red-600 w-6 shadow-[0_0_10px_rgba(220,38,38,0.5)]' : 'bg-white/20'}`}></div>
+         ))}
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script is:inline define:vars={{ totalImagenes }}>
+    if (totalImagenes > 0) {
+      let current = 0;
+      
+      const track = document.querySelector('.carousel-track');
+      const counter = document.querySelector('.carousel-current');
+      const thumbBtns = document.querySelectorAll('.thumb-btn');
+      
+      // Lightbox elements
+      const lightbox = document.getElementById('lightbox');
+      const lbTrack = document.getElementById('lbTrack');
+      const lbCounter = document.getElementById('lbCurrent');
+      const lbDots = document.querySelectorAll('.lb-dot');
+      const openLbBtn = document.getElementById('openLightbox');
+      const closeLbBtn = document.getElementById('closeLightbox');
+
+      function updateGallery(index) {
+        current = (index + totalImagenes) % totalImagenes;
+        
+        if (track) track.style.transform = `translateX(-${current * 100}%)`;
+        if (counter) counter.textContent = current + 1;
+        
+        // Miniaturas (si existen)
+        thumbBtns.forEach((btn, i) => {
+          if (i === current) {
+            btn.classList.add('border-red-600');
+            btn.classList.remove('opacity-60');
+          } else {
+            btn.classList.remove('border-red-600');
+            btn.classList.add('opacity-60');
+          }
+        });
+
+        // Lightbox
+        if (lbTrack) lbTrack.style.transform = `translateX(-${current * 100}%)`;
+        if (lbCounter) lbCounter.textContent = current + 1;
+        lbDots.forEach((dot, i) => {
+          if (i === current) {
+            dot.classList.add('bg-red-500', 'w-4');
+            dot.classList.remove('bg-white/20');
+          } else {
+            dot.classList.remove('bg-red-500', 'w-4');
+            dot.classList.add('bg-white/20');
+          }
+        });
+      }
+
+      // Flechas carrusel principal
+      document.querySelector('.carousel-prev')?.addEventListener('click', (e) => { 
+        e.stopPropagation(); updateGallery(current - 1); 
+      });
+      document.querySelector('.carousel-next')?.addEventListener('click', (e) => { 
+        e.stopPropagation(); updateGallery(current + 1); 
+      });
+
+      // Lógica de permisos para el botón Editar
+      const userEmail = (typeof localStorage !== 'undefined' ? (localStorage.getItem('userEmail') || "").trim().toLowerCase() : "");
+      const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+      const isAdmin = (typeof localStorage !== 'undefined' ? ((localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes(userEmail)) : false);
+      
+      const editBtn = document.getElementById('editButton');
+      if (editBtn) {
+        const authorEmail = (editBtn.dataset.author || "").toString().trim().toLowerCase();
+        if (isAdmin || (userEmail && userEmail === authorEmail)) {
+          editBtn.classList.remove('hidden');
+          editBtn.classList.add('flex');
+        }
+      }
+      
+      thumbBtns.forEach((btn, i) => btn.addEventListener('click', () => updateGallery(i)));
+
+      // Controles Carrusel Relacionados
+      const relTrack = document.getElementById('relTrack');
+      const relPrev = document.getElementById('relPrev');
+      const relNext = document.getElementById('relNext');
+      
+      if (relTrack && relPrev && relNext) {
+        relPrev.addEventListener('click', () => {
+          relTrack.scrollBy({ left: -320, behavior: 'smooth' });
+        });
+        relNext.addEventListener('click', () => {
+          relTrack.scrollBy({ left: 320, behavior: 'smooth' });
+        });
+
+        // Movimiento Automático
+        let autoScroll = setInterval(() => {
+          const maxScroll = relTrack.scrollWidth - relTrack.clientWidth;
+          if (relTrack.scrollLeft >= maxScroll - 10) {
+            relTrack.scrollTo({ left: 0, behavior: 'smooth' });
+          } else {
+            relTrack.scrollBy({ left: 320, behavior: 'smooth' });
+          }
+        }, 5000);
+
+        // Detener auto-scroll al interactuar
+        relTrack.addEventListener('mouseenter', () => clearInterval(autoScroll));
+        relTrack.addEventListener('touchstart', () => clearInterval(autoScroll));
+      }
+
+      // Lightbox controls
+      const openLightbox = () => {
+        lightbox.classList.remove('hidden', 'pointer-events-none');
+        setTimeout(() => lightbox.classList.remove('opacity-0'), 10);
+        document.body.style.overflow = 'hidden'; 
+        updateGallery(current);
+      };
+
+      openLbBtn?.addEventListener('click', openLightbox);
+
+      const closeAction = () => {
+        lightbox.classList.add('opacity-0', 'pointer-events-none');
+        document.body.style.overflow = '';
+        setTimeout(() => lightbox.classList.add('hidden'), 300);
+      };
+
+      closeLbBtn?.addEventListener('click', closeAction);
+      document.getElementById('lbPrev')?.addEventListener('click', () => updateGallery(current - 1));
+      document.getElementById('lbNext')?.addEventListener('click', () => updateGallery(current + 1));
+
+      // Close on escape
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAction(); });
+
+      // Swipe support
+      let touchX = 0;
+      const addSwipe = (el) => {
+        el?.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+        el?.addEventListener('touchend', e => {
+          const diff = touchX - e.changedTouches[0].clientX;
+          if (Math.abs(diff) > 50) updateGallery(diff > 0 ? current + 1 : current - 1);
+        });
+      };
+      
+      if (track) addSwipe(track);
+      if (lbTrack) addSwipe(lbTrack);
+
+      // Auto-play
+      let interval = setInterval(() => updateGallery(current + 1), 7000);
+      const stopInterval = () => { if(interval) { clearInterval(interval); interval = null; } };
+      [track, lbTrack, ...thumbBtns].forEach(el => el?.addEventListener('click', stopInterval, {once: true}));
+    }
+  </script>
+</Layout>

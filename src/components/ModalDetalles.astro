@@ -1,0 +1,138 @@
+---
+---
+
+<!-- Modal de Detalles -->
+<div
+  id="modalDetalles"
+  class="fixed inset-0 z-50 hidden bg-black bg-opacity-75 flex-col items-center justify-center p-4 sm:p-6 opacity-0 transition-opacity duration-300 pointer-events-none"
+  style="display: flex;"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col transform scale-95 transition-transform duration-300 pointer-events-auto"
+    id="modalContenido"
+  >
+    <!-- Cabecera del Modal -->
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+      <h3 class="text-xl font-extrabold text-gray-900 truncate pr-4" id="modalTitulo">
+        Cargando...
+      </h3>
+      <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 transition focus:outline-none flex-shrink-0">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Cuerpo del Modal (Scrollable) -->
+    <div class="overflow-y-auto flex-grow p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Columna Izquierda: Galería -->
+        <div>
+          <div class="relative aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden mb-3 border border-gray-200 shadow-inner">
+            <img
+              id="modalImagenPrincipal"
+              src="https://via.placeholder.com/800x600?text=Cargando"
+              class="w-full h-full object-contain bg-gray-50"
+            />
+          </div>
+          <!-- Miniaturas -->
+          <div id="modalMiniaturas" class="flex gap-2 py-2 overflow-x-auto">
+            <!-- Se inyectan las miniaturas aquí -->
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Información -->
+        <div class="flex flex-col">
+          <div class="text-3xl font-extrabold text-red-700 mb-6" id="modalPrecio">
+            $0
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span class="text-xs text-gray-500 font-bold uppercase block mb-1 tracking-wider">Año</span>
+              <span class="font-bold text-gray-800 flex items-center gap-2" id="modalAnio">
+                <i data-lucide="calendar" class="w-4 h-4 text-red-600"></i> -
+              </span>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span class="text-xs text-gray-500 font-bold uppercase block mb-1 tracking-wider">Kilometraje</span>
+              <span class="font-bold text-gray-800 flex items-center gap-2" id="modalKilometraje">
+                <i data-lucide="gauge" class="w-4 h-4 text-red-600"></i> -
+              </span>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span class="text-xs text-gray-500 font-bold uppercase block mb-1 tracking-wider">Transmisión</span>
+              <span class="font-bold text-gray-800 flex items-center gap-2" id="modalTransmision">
+                <i data-lucide="settings-2" class="w-4 h-4 text-red-600"></i> -
+              </span>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span class="text-xs text-gray-500 font-bold uppercase block mb-1 tracking-wider">Combustible</span>
+              <span class="font-bold text-gray-800 flex items-center gap-2" id="modalCombustible">
+                <i data-lucide="fuel" class="w-4 h-4 text-red-600"></i> -
+              </span>
+            </div>
+          </div>
+
+          <h4 class="font-bold text-gray-900 border-b-2 border-gray-100 pb-2 mb-4 uppercase text-sm tracking-wider">
+            Más Especificaciones
+          </h4>
+          <ul class="text-sm text-gray-600 space-y-3 mb-6">
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Motor:</span>
+              <span id="modalMotor" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">-</span>
+            </li>
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Color:</span>
+              <span id="modalColor" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">-</span>
+            </li>
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Placa terminada en:</span>
+              <span id="modalPlaca" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">-</span>
+            </li>
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Ciudad placa:</span>
+              <span id="modalCiudadPlaca" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded capitalize">-</span>
+            </li>
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Nacionalidad:</span>
+              <span id="modalNac" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded capitalize">-</span>
+            </li>
+            <li class="flex justify-between items-center">
+              <span class="font-medium">Tipo:</span>
+              <span id="modalTipo" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded capitalize">-</span>
+            </li>
+          </ul>
+
+          <h4 class="font-bold text-gray-900 border-b-2 border-gray-100 pb-2 mb-4 uppercase text-sm tracking-wider">
+            Descripción del Vendedor
+          </h4>
+          <div
+            class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-red-50/50 p-4 rounded-xl border border-red-100 italic flex-grow"
+            id="modalContent"
+          >
+            -
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pie del Modal -->
+    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end flex-shrink-0">
+      <a
+        id="modalBtnContactar"
+        href="https://wa.me/573202832616?text=Hola,%20vengo%20de%20toyotausados.com"
+        target="_blank"
+        class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+      >
+        <i data-lucide="message-circle" class="w-5 h-5"></i> Contactar Vendedor
+      </a>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  /* Ocultar el modal correctamente para que no interfiera en la UI */
+  #modalDetalles.hidden,
+  #modalFiltros.hidden {
+    display: none !important;
+  }
+</style>

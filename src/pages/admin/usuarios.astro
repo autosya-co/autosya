@@ -1,0 +1,227 @@
+---
+export const prerender = true;
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+---
+
+<Layout title="Gestión de Usuarios">
+  <script is:inline>
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('isAdmin') !== 'true') {
+      window.location.href = '/';
+    }
+  </script>
+  <Navbar />
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-gray-900">Gestión de Usuarios</h1>
+        <p class="text-gray-500 mt-1 text-sm">Usuarios registrados en el sistema (extraídos de publicaciones)</p>
+      </div>
+      <button onclick="abrirMensajeMasivo()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md flex items-center gap-2 text-sm cursor-pointer">
+        <i data-lucide="send" class="w-4 h-4"></i>
+        Mensaje Masivo
+      </button>
+    </div>
+
+    <!-- Buscador -->
+    <div class="mb-6">
+      <input type="text" id="buscarUsuario" placeholder="Buscar por nombre o email..."
+        class="w-full max-w-md px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" />
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="flex flex-col items-center justify-center py-20">
+      <i data-lucide="loader-2" class="w-10 h-10 text-indigo-600 animate-spin mb-4"></i>
+      <p class="text-gray-500 font-medium">Cargando usuarios...</p>
+    </div>
+
+    <!-- Tabla -->
+    <div id="tablaContainer" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th class="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Usuario</th>
+              <th class="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Publicaciones</th>
+              <th class="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Rol</th>
+              <th class="text-right px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyUsuarios" class="divide-y divide-gray-50"></tbody>
+        </table>
+      </div>
+      <div class="px-6 py-3 text-xs text-gray-400 border-t border-gray-50">
+        Total: <span id="totalUsuarios">0</span> usuarios
+      </div>
+    </div>
+
+    <!-- Vacío -->
+    <div id="estadoVacio" class="hidden text-center py-20">
+      <i data-lucide="users" class="w-16 h-16 text-gray-200 mx-auto mb-4"></i>
+      <p class="text-gray-500">No se encontraron usuarios</p>
+    </div>
+  </div>
+
+  <!-- Modal Mensaje Masivo -->
+  <div id="modalMensaje" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-gray-900">Mensaje Masivo</h2>
+        <button onclick="cerrarMensajeMasivo()" class="text-gray-400 hover:text-red-500 transition cursor-pointer">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+      <p class="text-sm text-gray-500 mb-4">Se enviará a todos los usuarios registrados por WhatsApp.</p>
+      <textarea id="textoMasivo" rows="5" placeholder="Escribe tu mensaje aquí..."
+        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm resize-none mb-4"></textarea>
+      <div class="flex gap-3">
+        <button onclick="enviarMensajeMasivo()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          Enviar por WhatsApp
+        </button>
+        <button onclick="cerrarMensajeMasivo()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition cursor-pointer">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { db } from '../../lib/firebase';
+    import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+    const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+    let todosUsuarios = [];
+
+    async function cargarUsuarios() {
+      try {
+        const q = query(collection(db, "usuarios"), orderBy("ultimoAcceso", "desc"));
+        const snapshot = await getDocs(q);
+        
+        todosUsuarios = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.classList.add('hidden');
+
+        if (todosUsuarios.length === 0) {
+          const vacioEl = document.getElementById('estadoVacio');
+          if (vacioEl) vacioEl.classList.remove('hidden');
+          // @ts-ignore
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        renderTabla(todosUsuarios);
+        const totalEl = document.getElementById('totalUsuarios');
+        if (totalEl) totalEl.textContent = todosUsuarios.length.toString();
+        
+        const containerEl = document.getElementById('tablaContainer');
+        if (containerEl) containerEl.classList.remove('hidden');
+        // @ts-ignore
+        if (window.lucide) window.lucide.createIcons();
+      } catch (error) {
+        console.error("Error cargando usuarios:", error);
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.innerHTML = '<p class="text-red-500 font-bold text-center py-10">Error al cargar datos de Firestore</p>';
+      }
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbodyUsuarios');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      lista.forEach(u => {
+        const esAdmin = ADMIN_EMAILS.includes(u.email);
+        const iniciales = u.nombre ? u.nombre.slice(0,2).toUpperCase() : u.email.slice(0,2).toUpperCase();
+        const fecha = u.ultimoAcceso?.toDate ? u.ultimoAcceso.toDate().toLocaleDateString() : 'N/A';
+        
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr class="hover:bg-gray-50 transition">
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-3">
+                ${u.foto 
+                  ? `<img src="${u.foto}" class="w-9 h-9 rounded-full object-cover border border-gray-100" referrerpolicy="no-referrer">`
+                  : `<div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm flex-shrink-0">${iniciales}</div>`
+                }
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">${u.nombre || 'Usuario sin nombre'}</p>
+                  <p class="text-xs text-gray-500">${u.email}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 hidden md:table-cell">
+              <span class="text-gray-600 text-xs">${fecha}</span>
+            </td>
+            <td class="px-6 py-4 hidden md:table-cell">
+              <span class="px-3 py-1 rounded-full text-xs font-bold ${esAdmin ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">${esAdmin ? 'Administrador' : 'Usuario'}</span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <a href="https://wa.me/${encodeURIComponent(u.email.includes('+57') ? '' : '57')}?text=${encodeURIComponent('Hola ' + (u.nombre || '') + ', te contactamos desde Toyota Usados.')}"
+                target="_blank"
+                class="inline-flex items-center gap-1.5 text-xs bg-green-50 hover:bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg transition">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                WhatsApp
+              </a>
+            </td>
+          </tr>
+        `);
+      });
+      // @ts-ignore
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    // Inicializar carga
+    cargarUsuarios();
+
+    // Buscador
+    document.getElementById('buscarUsuario')?.addEventListener('input', (e) => {
+      const q = (e.target as HTMLInputElement).value.toLowerCase();
+      const filtrados = todosUsuarios.filter(u => 
+        u.email.toLowerCase().includes(q) || 
+        (u.nombre && u.nombre.toLowerCase().includes(q))
+      );
+      renderTabla(filtrados);
+      const totalEl = document.getElementById('totalUsuarios');
+      if (totalEl) totalEl.textContent = filtrados.length.toString();
+    });
+
+    // Funciones de Modal masivo (exponemos a window)
+    // @ts-ignore
+    window.abrirMensajeMasivo = function() {
+      const modal = document.getElementById('modalMensaje');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // @ts-ignore
+        if (window.lucide) window.lucide.createIcons();
+      }
+    };
+
+    // @ts-ignore
+    window.cerrarMensajeMasivo = function() {
+      const modal = document.getElementById('modalMensaje');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    };
+
+    // @ts-ignore
+    window.enviarMensajeMasivo = function() {
+      const msgEl = document.getElementById('textoMasivo') as HTMLTextAreaElement;
+      const msg = msgEl?.value.trim();
+      if (!msg) { alert('Escribe un mensaje.'); return; }
+      const tel = '573202832616';
+      const url = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+      // @ts-ignore
+      cerrarMensajeMasivo();
+    };
+  </script>
+</Layout>

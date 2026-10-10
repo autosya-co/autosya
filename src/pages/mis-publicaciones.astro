@@ -1,0 +1,345 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import { db } from '../lib/firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+
+const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const urlAppsScriptServer = configSnap.exists() ? configSnap.data().url_apps_script : "";
+
+// Fetch all publications in SSR for more reliable filtering
+let allFirebaseData = [];
+try {
+  const snapshot = await getDocs(collection(db, 'toyotausados'));
+  allFirebaseData = snapshot.docs.map(doc => ({ 
+    firebaseDocId: doc.id, 
+    ...doc.data() 
+  }));
+} catch (e) {
+  console.error("Error fetching publications in SSR:", e);
+}
+---
+
+<Layout title="Mis Publicaciones">
+  <script is:inline>
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('isLoggedIn') !== 'true') {
+      window.location.href = '/';
+    }
+  </script>
+  <Navbar />
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-gray-900">Mis Publicaciones</h1>
+        <p id="user-debug" class="text-gray-500 mt-1 text-sm">Gestiona el catálogo de vehículos publicados</p>
+      </div>
+      <div class="flex gap-2">
+
+        <a href="/add" class="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md flex items-center gap-2 text-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Nueva Publicación
+        </a>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="flex flex-col items-center justify-center py-24">
+      <i data-lucide="loader-2" class="w-10 h-10 text-red-600 animate-spin mb-4"></i>
+      <p class="text-gray-500 font-medium">Cargando tus publicaciones...</p>
+    </div>
+
+    <!-- Estado vacío -->
+    <div id="estadoVacio" class="hidden text-center py-24">
+      <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <i data-lucide="car-front" class="w-12 h-12 text-gray-300"></i>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-700 mb-2">Aún no tienes publicaciones</h2>
+      <p class="text-gray-500 mb-8">Cuando publiques un vehículo, aparecerá aquí.</p>
+      <a href="/add" class="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded-xl transition shadow-lg inline-flex items-center gap-2">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+        Publicar mi primer vehículo
+      </a>
+    </div>
+
+    <!-- Grid de publicaciones -->
+    <div id="gridPublicaciones" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+    <input type="hidden" id="urlAppsScriptServer" value={urlAppsScriptServer} />
+    <script id="all-publications-data" type="application/json" set:html={JSON.stringify(allFirebaseData)}></script>
+
+  <script>
+    import { db } from '../lib/firebase';
+    import { collection, query, where, getDocs, doc, updateDoc, orderBy, limit } from 'firebase/firestore';
+
+
+    let globalResults = [];
+    const userEmail = (typeof localStorage !== 'undefined' ? (localStorage.getItem('userEmail') || "").trim().toLowerCase() : "");
+    const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+    const isAdmin = (typeof localStorage !== 'undefined' ? ((localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes(userEmail)) : false);
+
+    const getAppsScriptUrl = () => {
+      const el = document.getElementById('urlAppsScriptServer');
+      return (el && 'value' in el ? el.value : null) || "https://script.google.com/macros/s/AKfycbzOu94N3mG5P7Z6jknzEnqtL1aDTKesxJ8jX2VgAdHw0doUeRdhr5X5O48COhhIcPy66g/exec";
+    }
+
+    const URL_APPS_SCRIPT = getAppsScriptUrl();
+
+    const fmt = (v: any) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(v) || 0);
+    const slugify = (t: any) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
+
+    async function cargarPublicaciones() {
+      const loading      = document.getElementById('loading');
+      const estadoVacio  = document.getElementById('estadoVacio');
+      const grid         = document.getElementById('gridPublicaciones');
+
+      const debugEl     = document.getElementById('user-debug');
+      if (debugEl) {
+        debugEl.innerHTML = `<span class="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200">Email activo: <b>${userEmail || "No identificado"}</b></span>`;
+      }
+
+
+
+      try {
+        const rawJsonStr = document.getElementById('all-publications-data').textContent;
+        const allData = rawJsonStr ? JSON.parse(rawJsonStr) : [];
+        
+        let results = [];
+        
+        if (isAdmin) {
+          // Si es Admin: Mostrar todo
+          results = allData;
+        } else {
+          // Si es Usuario normal: Filtrar por cualquier variante de campo de correo
+          if (!userEmail) throw new Error("No se identificó el correo del usuario.");
+          
+          results = allData.filter(doc => {
+            // El nuevo estándar es 'usuario' (todo en minúsculas)
+            // Mantenemos fallback para campos antiguos solo por compatibilidad de lectura
+            const userFieldValue = (doc.usuario || doc.Usuario || doc.user_email || doc['correo usuario'] || doc['correo_usuario'] || doc.correo || "").toString().toLowerCase().trim();
+            return userFieldValue === userEmail;
+          });
+        }
+        
+        console.log("Resultados procesados por filtro dinámico:", results.length);
+        
+        console.log("Resultados procesados:", results.length, results);
+        globalResults = results;
+        let filteredResults = results;
+
+        // Ordenar por ID descendente
+        filteredResults.sort((a, b) => (Number(b.ID) || 0) - (Number(a.ID) || 0));
+
+        // Filtrar IDs eliminados localmente (solo para usuarios normales)
+        const deletedIds = JSON.parse(localStorage.getItem('deletedVehicleIds') || '[]');
+        let lista = filteredResults.filter(c => {
+            if (!c.ID || !c.Title) return false;
+            if (isAdmin) return true; 
+            return !deletedIds.includes(String(c.ID));
+        });
+
+        if (loading) loading.classList.add('hidden');
+
+        if (lista.length === 0) {
+          if (estadoVacio) estadoVacio.classList.remove('hidden');
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        if (grid) {
+          grid.classList.remove('hidden');
+          grid.classList.add('grid');
+          grid.innerHTML = ''; // Limpiar previo
+        }
+
+        lista.forEach(carro => {
+          let imgSrc = 'https://via.placeholder.com/400x300?text=Sin+Imagen';
+          if (carro.Images) {
+            const ids = carro.Images.split('|');
+            if (ids[0] && ids[0].trim()) imgSrc = `https://drive.google.com/thumbnail?id=${ids[0].trim()}&sz=w300`;
+          }
+          const slug = `/${carro.ID}/${slugify(carro.Title)}`;
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition flex flex-col group';
+
+          const imgLink = document.createElement('a');
+          imgLink.href = slug;
+          imgLink.className = 'relative aspect-[4/3] bg-gray-100 block overflow-hidden';
+          const img = document.createElement('img');
+          img.src = imgSrc;
+          img.alt = carro.Title || 'Vehículo';
+          img.className = 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
+          img.loading = 'lazy';
+          img.referrerPolicy = 'no-referrer';
+          imgLink.appendChild(img);
+
+          // Badge de Estado (Pendiente o Publicado)
+          const badge = document.createElement('div');
+          badge.className = 'absolute top-2 right-2 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-md z-10';
+          
+          const idNum = Number(carro.ID) || 0;
+          const isApproved = carro.publicado === true || carro.publicado === "true";
+          const esPendiente = idNum > 42300 ? !isApproved : (carro.publicado === false || carro.publicado === "false");
+
+          if (esPendiente) {
+            badge.classList.add('bg-amber-500');
+            badge.textContent = 'PENDIENTE';
+          } else {
+            badge.classList.add('bg-green-600');
+            badge.textContent = 'PUBLICADO';
+          }
+          imgLink.appendChild(badge);
+
+          const body = document.createElement('div');
+          body.className = 'p-4 flex flex-col flex-grow';
+
+          const title = document.createElement('h2');
+          title.className = 'font-bold text-gray-900 mb-1 line-clamp-2 text-sm leading-snug';
+          title.textContent = carro.Title || 'Sin título';
+
+          const price = document.createElement('p');
+          price.className = 'text-red-700 font-extrabold text-xl mb-3';
+          price.textContent = fmt(carro.Price);
+
+          const actions = document.createElement('div');
+          actions.className = 'mt-auto flex flex-wrap gap-1.5';
+
+          // Botón Publicar (Solo Admin y si está pendiente)
+          if (isAdmin && esPendiente) {
+            const btnPublicar = document.createElement('button');
+            btnPublicar.type = 'button';
+            btnPublicar.className = 'btn-publicar w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg text-xs transition flex items-center justify-center gap-1 mb-1 shadow-sm';
+            btnPublicar.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Publicar Ahora';
+            btnPublicar.dataset.firebaseId = carro.firebaseDocId;
+            btnPublicar.dataset.titulo = carro.Title;
+            actions.appendChild(btnPublicar);
+          }
+
+          const btnVer = document.createElement('a');
+          btnVer.href = slug;
+          btnVer.className = 'flex-1 text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center gap-1';
+          btnVer.innerHTML = '<i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver';
+
+          const btnEditar = document.createElement('a');
+          btnEditar.href = `/edit?id=${carro.ID}`;
+          btnEditar.className = 'flex-1 text-center bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center gap-1';
+          btnEditar.innerHTML = '<i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar';
+
+          const btnBorrar = document.createElement('button');
+          btnBorrar.type = 'button';
+          btnBorrar.className = 'btn-borrar flex-1 text-center bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center gap-1 cursor-pointer';
+          btnBorrar.innerHTML = '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar';
+          btnBorrar.dataset.id     = carro.ID;
+          btnBorrar.dataset.titulo = carro.Title || 'esta publicación';
+
+          actions.appendChild(btnVer);
+          actions.appendChild(btnEditar);
+          actions.appendChild(btnBorrar);
+          body.appendChild(title);
+          body.appendChild(price);
+          body.appendChild(actions);
+          wrapper.appendChild(imgLink);
+          wrapper.appendChild(body);
+          if (grid) grid.appendChild(wrapper);
+        });
+
+        if (window.lucide) window.lucide.createIcons();
+      } catch (error) {
+        console.error("Error en cargarPublicaciones:", error);
+        if (loading) loading.innerHTML = '<p class="text-red-500 font-bold text-center py-20">Error al cargar datos. Refresca la página.</p>';
+      }
+    }
+    
+    cargarPublicaciones();
+
+    const gridEl = document.getElementById('gridPublicaciones');
+    if (gridEl) {
+      gridEl.addEventListener('click', function(e) {
+        const btnBorrar = e.target.closest('.btn-borrar');
+        if (btnBorrar) {
+          eliminarPublicacion(btnBorrar.dataset.id, btnBorrar.dataset.titulo || 'esta publicación', btnBorrar);
+          return;
+        }
+
+        const btnPublicar = e.target.closest('.btn-publicar');
+        if (btnPublicar) {
+          aprobarPublicacion(btnPublicar.dataset.firebaseId, btnPublicar.dataset.titulo || 'este vehículo', btnPublicar);
+          return;
+        }
+      });
+    }
+
+
+
+    async function aprobarPublicacion(firebaseId, titulo, btn) {
+      if (!confirm(`¿Deseas publicar "${titulo}" ahora?\n\nSerá visible inmediatamente en el catálogo.`)) return;
+
+      const contenidoOriginal = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = 'Publicando...';
+
+      try {
+        const docRef = doc(db, "toyotausados", firebaseId);
+        const updateData = { publicado: true };
+
+        // Auto-reclamar si no tiene dueño
+        const currentDoc = globalResults.find(c => c.firebaseDocId === firebaseId);
+        if (currentDoc && !currentDoc.normalizedUser) {
+           updateData.usuario = userEmail;
+           console.log("Auto-asignando usuario al aprobar huérfano.");
+        }
+
+        await updateDoc(docRef, updateData);
+        
+        alert('✓ ¡Vehículo publicado con éxito!');
+        // Recargar la lista para reflejar cambios
+        cargarPublicaciones();
+      } catch (error) {
+        console.error("Error al publicar:", error);
+        alert('Error al publicar el vehículo. Revisa la consola.');
+        btn.disabled = false;
+        btn.innerHTML = contenidoOriginal;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    async function eliminarPublicacion(id, titulo, btn) {
+      if (!confirm(`¿Eliminar "${titulo}"?\n\nEsta acción no se puede deshacer.`)) return;
+
+      const contenidoOriginal = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch(URL_APPS_SCRIPT, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'eliminar', id, usuario: userEmail, isAdmin })
+        });
+
+        let data = { exito: false, mensaje: 'Respuesta inválida del servidor.' };
+        try { data = await res.json(); } catch(_) {}
+
+        if (data.exito) {
+          const deletedIds = JSON.parse(localStorage.getItem('deletedVehicleIds') || '[]');
+          if (!deletedIds.includes(String(id))) deletedIds.push(String(id));
+          localStorage.setItem('deletedVehicleIds', JSON.stringify(deletedIds));
+          btn.closest('.bg-white').remove();
+          alert('✓ Publicación eliminada correctamente.');
+        } else {
+          const msg = data && data.mensaje ? String(data.mensaje) : 'Error desconocido.';
+          alert('No se pudo eliminar: ' + msg);
+          btn.disabled = false;
+          btn.innerHTML = contenidoOriginal;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      } catch(e) {
+        alert('Error de conexión. Verifica tu internet e intenta de nuevo.');
+        btn.disabled = false;
+        btn.innerHTML = contenidoOriginal;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+  </script>
+</Layout>

@@ -1,0 +1,225 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const config = configSnap.exists() ? configSnap.data() : {};
+---
+
+<Layout title="Configuración del Negocio">
+  <script is:inline>
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('isAdmin') !== 'true') {
+      window.location.href = '/';
+    }
+  </script>
+  <Navbar />
+
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="mb-8">
+      <h1 class="text-3xl font-extrabold text-gray-900">Configuración del Negocio</h1>
+      <p class="text-gray-500 mt-1 text-sm">Personaliza la información de tu negocio y la conexión técnica</p>
+    </div>
+
+    <!-- Alerta guardado -->
+    <div id="alerta" class="hidden mb-6 p-4 rounded-xl text-center font-semibold text-sm"></div>
+
+    <form id="formConfig" class="space-y-8">
+
+      <!-- Información Básica -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+          <span class="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+            <i data-lucide="store" class="w-5 h-5 text-red-600"></i>
+          </span>
+          Información Básica
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Nombre del Negocio</label>
+            <input type="text" id="cfg_nombre" value={config.nombre || ''} placeholder="Ej: Toyota Usados Colombia"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Eslogan</label>
+            <input type="text" id="cfg_eslogan" value={config.eslogan || ''} placeholder="Ej: Tu aliado en Toyota usados"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Dirección</label>
+            <input type="text" id="cfg_direccion" value={config.direccion || ''} placeholder="Ej: Calle 11A # 1E - 29 Caobos"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Teléfono</label>
+            <input type="tel" id="cfg_telefono" value={config.telefono || ''} placeholder="Ej: 3202832616"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">WhatsApp</label>
+            <input type="tel" id="cfg_whatsapp" value={config.whatsapp || ''} placeholder="Ej: 573202832616"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Email de Contacto</label>
+            <input type="email" id="cfg_email" value={config.email || ''} placeholder="Ej: contacto@toyotausados.com"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">URL del Logo</label>
+            <input type="url" id="cfg_logo" value={config.logo || ''} placeholder="https://..."
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Redes Sociales -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+          <span class="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+            <i data-lucide="share-2" class="w-5 h-5 text-indigo-600"></i>
+          </span>
+          Redes Sociales
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+              <i data-lucide="facebook" class="w-3.5 h-3.5 text-blue-600"></i> Facebook
+            </label>
+            <input type="url" id="cfg_facebook" value={config.facebook || ''} placeholder="https://facebook.com/..."
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+              <i data-lucide="instagram" class="w-3.5 h-3.5 text-pink-600"></i> Instagram
+            </label>
+            <input type="url" id="cfg_instagram" value={config.instagram || ''} placeholder="https://instagram.com/..."
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:outline-none text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+              <i data-lucide="youtube" class="w-3.5 h-3.5 text-red-600"></i> YouTube
+            </label>
+            <input type="url" id="cfg_youtube" value={config.youtube || ''} placeholder="https://youtube.com/..."
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">TikTok</label>
+            <input type="url" id="cfg_tiktok" value={config.tiktok || ''} placeholder="https://tiktok.com/..."
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-500 focus:outline-none text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuración Técnica -->
+      <div class="bg-gray-900 rounded-2xl shadow-lg border border-gray-800 p-6 text-white">
+        <h2 class="text-lg font-bold text-white mb-5 flex items-center gap-2">
+          <span class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
+            <i data-lucide="code" class="w-5 h-5 text-green-400"></i>
+          </span>
+          Configuración Técnica
+        </h2>
+        <div class="space-y-6">
+          <div>
+            <label class="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">URL de Google Apps Script</label>
+            <input type="url" id="cfg_url_apps_script" value={config.url_apps_script || ''} placeholder="https://script.google.com/macros/s/.../exec"
+              class="w-full px-4 py-2.5 border border-gray-700 bg-gray-800 text-white rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-sm font-mono" />
+          </div>
+
+          <div class="pt-4 border-t border-gray-800">
+            <h3 class="text-xs font-black text-red-500 uppercase tracking-widest mb-4">Ajustes de Marca de Agua (Automática)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">URL de la Marca (.png o .jpg)</label>
+                <input type="text" id="cfg_wm_url" value={config.watermark_url || '/marca_de_agua_toyota_rojo.jpeg'}
+                  class="w-full px-4 py-2.5 border border-gray-700 bg-gray-800 text-white rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm font-mono" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Escala (Ej: 1.0 para 100%)</label>
+                <input type="number" step="0.1" id="cfg_wm_scale" value={config.watermark_scale || 1.0}
+                  class="w-full px-4 py-2.5 border border-gray-700 bg-gray-800 text-white rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Opacidad (0.1 a 1.0)</label>
+                <input type="number" step="0.1" id="cfg_wm_opacity" value={config.watermark_opacity || 1.0}
+                  class="w-full px-4 py-2.5 border border-gray-700 bg-gray-800 text-white rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Margen Inferior (px)</label>
+                <input type="number" id="cfg_wm_bottom" value={config.watermark_bottom || 0}
+                  class="w-full px-4 py-2.5 border border-gray-700 bg-gray-800 text-white rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guardar -->
+      <button type="submit" id="btnGuardar" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base cursor-pointer">
+        <i data-lucide="save" class="w-5 h-5"></i>
+        <span id="textGuardar">Guardar Configuración en Firebase</span>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    import { db } from '../../lib/firebase';
+    import { doc, setDoc } from 'firebase/firestore';
+
+    const form = document.getElementById('formConfig');
+    const btn = document.getElementById('btnGuardar');
+    const text = document.getElementById('textGuardar');
+    const alerta = document.getElementById('alerta');
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      text.innerText = "Guardando...";
+
+      const data = {
+        nombre: document.getElementById('cfg_nombre').value.trim(),
+        eslogan: document.getElementById('cfg_eslogan').value.trim(),
+        direccion: document.getElementById('cfg_direccion').value.trim(),
+        telefono: document.getElementById('cfg_telefono').value.trim(),
+        whatsapp: document.getElementById('cfg_whatsapp').value.trim(),
+        email: document.getElementById('cfg_email').value.trim(),
+        logo: document.getElementById('cfg_logo').value.trim(),
+        facebook: document.getElementById('cfg_facebook').value.trim(),
+        instagram: document.getElementById('cfg_instagram').value.trim(),
+        youtube: document.getElementById('cfg_youtube').value.trim(),
+        tiktok: document.getElementById('cfg_tiktok').value.trim(),
+        url_apps_script: document.getElementById('cfg_url_apps_script').value.trim(),
+        watermark_url: document.getElementById('cfg_wm_url').value.trim(),
+        watermark_scale: parseFloat(document.getElementById('cfg_wm_scale').value),
+        watermark_opacity: parseFloat(document.getElementById('cfg_wm_opacity').value),
+        watermark_bottom: parseInt(document.getElementById('cfg_wm_bottom').value),
+        ultima_actualizacion: new Date().toISOString()
+      };
+
+      try {
+        await setDoc(doc(db, "configuracion", "negocio"), data, { merge: true });
+        
+        alerta.className = 'mb-6 p-4 rounded-xl text-center font-semibold text-sm bg-green-100 text-green-800';
+        alerta.textContent = '✓ Configuración sincronizada con Firebase';
+        alerta.classList.remove('hidden');
+        
+        // Limpiar localStorage antiguo si existiera para evitar confusiones
+        localStorage.removeItem('biz_nombre');
+        
+      } catch (error) {
+        console.error("Error al guardar:", error);
+        alerta.className = 'mb-6 p-4 rounded-xl text-center font-semibold text-sm bg-red-100 text-red-800';
+        alerta.textContent = '✕ Error al guardar en Firebase';
+        alerta.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+        text.innerText = "Guardar Configuración en Firebase";
+        setTimeout(() => alerta.classList.add('hidden'), 4000);
+      }
+    });
+  </script>
+</Layout>

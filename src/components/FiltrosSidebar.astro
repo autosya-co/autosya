@@ -1,0 +1,152 @@
+---
+---
+
+<div id="modalFiltros" class="fixed inset-0 z-[100] hidden backdrop-blur-sm bg-black/60 transition-all duration-300 opacity-0 pointer-events-none">
+  <div id="sidebarFiltros" class="absolute inset-y-0 right-0 max-w-xs w-full bg-white shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col pointer-events-auto">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-red-600"></i>
+        Filtros
+      </h2>
+      <button onclick="cerrarMenuFiltros()" class="text-gray-400 hover:text-red-500 transition p-1 cursor-pointer">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Campos -->
+    <div class="p-5 overflow-y-auto flex-grow space-y-5">
+
+      <!-- Modelo -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Modelo</label>
+        <select id="filtroModelo" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquier Modelo</option>
+        </select>
+      </div>
+
+      <!-- Año -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Año</label>
+        <select id="filtroAnio" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquier Año</option>
+        </select>
+      </div>
+
+      <!-- Precio -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Precio</label>
+        <div class="flex gap-2 items-center">
+          <input type="number" id="filtroPrecioMin" placeholder="Mín" step="1000000"
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 text-sm" />
+          <span class="text-gray-400 text-sm">–</span>
+          <input type="number" id="filtroPrecioMax" placeholder="Máx" step="1000000"
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 text-sm" />
+        </div>
+      </div>
+
+      <!-- Kilometraje -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Kilometraje</label>
+        <div class="flex gap-2 items-center">
+          <input type="number" id="filtroKmMin" placeholder="Mín" step="10000"
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 text-sm" />
+          <span class="text-gray-400 text-sm">–</span>
+          <input type="number" id="filtroKmMax" placeholder="Máx" step="10000"
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 text-sm" />
+        </div>
+      </div>
+
+      <!-- Transmisión -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Transmisión</label>
+        <select id="filtroTransmision" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquiera</option>
+          <option value="Mecánica">Mecánica</option>
+          <option value="Automática">Automática</option>
+        </select>
+      </div>
+
+      <!-- Combustible -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Combustible</label>
+        <select id="filtroCombustible" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquiera</option>
+          <option value="Gasolina">Gasolina</option>
+          <option value="Diesel">Diesel</option>
+          <option value="Eléctrico">Eléctrico</option>
+          <option value="Híbrido">Híbrido</option>
+        </select>
+      </div>
+
+      <!-- Ciudad -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Ciudad</label>
+        <select id="filtroCiudad" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquier Ciudad</option>
+        </select>
+      </div>
+
+    </div>
+
+    <!-- Botones -->
+    <div class="p-5 border-t border-gray-100 bg-white space-y-3">
+      <button onclick="cerrarMenuFiltros()" class="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow text-center cursor-pointer">
+        Aplicar Filtros
+      </button>
+      <button onclick="limpiarFiltros(); cerrarMenuFiltros();" class="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition text-center cursor-pointer">
+        Limpiar Todo
+      </button>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  // Correlación año ↔ modelo
+  document.addEventListener('DOMContentLoaded', () => {
+    const selModelo = document.getElementById('filtroModelo');
+    const selAnio = document.getElementById('filtroAnio');
+
+    function repoblarModelosPorAnio(anioSel) {
+      if (!window.__filtroData) return;
+      const modelos = anioSel
+        ? (window.__filtroData.modelosPorAnio[anioSel] || [])
+        : window.__filtroData.todosModelos;
+      const cur = selModelo.value;
+      selModelo.innerHTML = '<option value="">Cualquier Modelo</option>';
+      [...modelos].sort().forEach(m => {
+        selModelo.insertAdjacentHTML('beforeend', `<option value="${m}"${m === cur ? ' selected' : ''}>${m}</option>`);
+      });
+    }
+
+    function repoblarAniosPorModelo(modeloSel) {
+      if (!window.__filtroData) return;
+      const anios = modeloSel
+        ? (window.__filtroData.aniosPorModelo[modeloSel] || [])
+        : window.__filtroData.todosAnios;
+      const cur = selAnio.value;
+      selAnio.innerHTML = '<option value="">Cualquier Año</option>';
+      [...anios].sort((a, b) => b - a).forEach(a => {
+        selAnio.insertAdjacentHTML('beforeend', `<option value="${a}"${a === cur ? ' selected' : ''}>${a}</option>`);
+      });
+    }
+
+    selModelo?.addEventListener('change', function () {
+      repoblarAniosPorModelo(this.value);
+      if (typeof aplicarFiltros === 'function') aplicarFiltros();
+    });
+
+    selAnio?.addEventListener('change', function () {
+      repoblarModelosPorAnio(this.value);
+      if (typeof aplicarFiltros === 'function') aplicarFiltros();
+    });
+
+    // Otros filtros aplican directamente
+    ['filtroPrecioMin','filtroPrecioMax','filtroKmMin','filtroKmMax','filtroTransmision','filtroCombustible','filtroCiudad'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', () => {
+        if (typeof aplicarFiltros === 'function') aplicarFiltros();
+      });
+    });
+  });
+</script>

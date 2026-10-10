@@ -1,0 +1,415 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import { db } from '../lib/firebase';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+
+const idVehiculo = Astro.url.searchParams.get('id');
+let vehiculoAEditar = null;
+let errorMsg = null;
+
+if (!idVehiculo) {
+  errorMsg = "No se proporcionó un ID de vehículo.";
+} else {
+  try {
+    const q = query(collection(db, "toyotausados"), where("ID", "==", Number(idVehiculo)));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      vehiculoAEditar = snapshot.docs[0].data();
+    } else {
+      // Reintentar como string por si acaso
+      const q2 = query(collection(db, "toyotausados"), where("ID", "==", String(idVehiculo)));
+      const snapshot2 = await getDocs(q2);
+      if (!snapshot2.empty) {
+        vehiculoAEditar = snapshot2.docs[0].data();
+      } else {
+        errorMsg = `No se encontró el vehículo con ID ${idVehiculo} en la base de datos.`;
+      }
+    }
+  } catch (e) {
+    console.error("Error cargando vehículo en SSR:", e);
+    errorMsg = "Error al conectar con la base de datos.";
+  }
+}
+const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const config = configSnap.exists() ? configSnap.data() : {};
+const urlAppsScriptServer = config.url_apps_script || "";
+const wmConfig = {
+  url: config.watermark_url || '/marca_de_agua_toyota_rojo.jpeg',
+  scale: config.watermark_scale || 1.0,
+  opacity: config.watermark_opacity || 1.0,
+  bottom: config.watermark_bottom || 0
+};
+---
+
+<Layout title="Editar Vehículo | Toyota Usados">
+  <script is:inline>
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('isLoggedIn') !== 'true') {
+      window.location.href = '/';
+    }
+  </script>
+  <Navbar />
+  
+  <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-8 border border-gray-200 mt-8 mb-8">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">
+        Editar Vehículo <span class="text-red-600">#{idVehiculo}</span>
+      </h1>
+      <a href="/" class="text-gray-500 hover:text-red-600 transition">Volver</a>
+    </div>
+
+    {errorMsg && (
+      <div class="bg-red-50 p-6 text-center rounded-lg mb-6 border border-red-200">
+        <p class="text-red-800 font-bold">{errorMsg}</p>
+      </div>
+    )}
+
+    {!errorMsg && vehiculoAEditar && (
+      <form id="formPublicar" class="space-y-6">
+        <input type="hidden" id="idSecuencial" value={vehiculoAEditar.ID}>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Título del Anuncio</label>
+          <input type="text" id="titulo" value={vehiculoAEditar.Title} required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700">Marca</label>
+            <input type="text" disabled value="Toyota" class="mt-1 w-full px-4 py-2 border border-gray-300 bg-gray-100 rounded-lg text-gray-500 font-bold">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700">Modelo de Toyota</label>
+            <select id="modelo" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
+              <option value="">Cargando modelos...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block text-sm font-semibold text-gray-700">Año</label><input type="number" id="anio" value={vehiculoAEditar.a_o || vehiculoAEditar.Anio} required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+          <div><label class="block text-sm font-semibold text-gray-700">Precio</label><input type="number" id="precio" value={vehiculoAEditar.Price} required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+          <div><label class="block text-sm font-semibold text-gray-700">Kilometraje</label><input type="number" id="kilometraje" value={vehiculoAEditar.Mileage} required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700">Transmisión</label>
+            <select id="transmision" required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded">
+              <option value="Mecánica" selected={vehiculoAEditar.Transmission === 'Mecánica'}>Mecánica</option>
+              <option value="Automática" selected={vehiculoAEditar.Transmission === 'Automática'}>Automática</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700">Combustible</label>
+            <select id="combustible" required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded">
+              <option value="Gasolina" selected={vehiculoAEditar.Fuel === 'Gasolina'}>Gasolina</option>
+              <option value="Diesel" selected={vehiculoAEditar.Fuel === 'Diesel'}>Diesel</option>
+              <option value="Híbrido" selected={vehiculoAEditar.Fuel === 'Híbrido'}>Híbrido</option>
+            </select>
+          </div>
+          <div><label class="block text-xs font-semibold text-gray-700">Motor</label><input type="number" id="motor" step="0.1" value={vehiculoAEditar.Engine} required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded"></div>
+          <div><label class="block text-xs font-semibold text-gray-700">Color</label><select id="color" required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded"></select></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div><label class="block text-xs font-semibold text-gray-700">Último dígito placa</label><input type="number" id="digitoPlaca" value={vehiculoAEditar.Plate_last_digit} required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded"></div>
+          <div class="col-span-2"><label class="block text-xs font-semibold text-gray-700">Ciudad de la Placa</label><input type="text" id="ciudadPlaca" value={vehiculoAEditar.ciudad_de_la_placa} required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded"></div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700">Nacionalidad</label>
+            <select id="nacionalidad" required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded">
+              <option value="Colombiano" selected={vehiculoAEditar.nac === 'Colombiano'}>Colombiano</option>
+              <option value="Venezolano" selected={vehiculoAEditar.nac === 'Venezolano'}>Venezolano</option>
+            </select>
+          </div>
+          <div><label class="block text-xs font-semibold text-gray-700">Tipo</label><select id="tipo" required class="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded"></select></div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700">Informacion del dueño: Nombre - whatsaap - direccion</label>
+            <input type="text" id="dueno" value={vehiculoAEditar.dueno} class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700">Publicado por (Correo)</label>
+            <input type="text" id="emailUsuarioVisual" value={vehiculoAEditar.usuario || vehiculoAEditar.Usuario || vehiculoAEditar.user_email || ''} readonly class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 font-mono text-sm cursor-not-allowed">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Imágenes (Arrastra para reordenar)</label>
+          <div id="dropzone" class="border-2 border-dashed border-red-400 bg-red-50 hover:bg-red-100 rounded-lg p-8 text-center cursor-pointer transition-colors relative">
+            <p class="text-red-800 font-medium">Arrastra nuevas fotos para añadirlas</p>
+            <input type="file" id="inputImagenesOculto" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+          </div>
+          <div id="galeriaPrevia" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-4 min-h-[100px] p-4 bg-gray-50 border border-gray-200 rounded-lg empty:hidden"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-100 rounded-lg border border-gray-200 mb-6 font-mono text-[10px] text-gray-500">
+           <span>Apps Script: {urlAppsScriptServer ? 'CONECTADO (Firestore)' : 'POR DEFECTO (Legacy)'}</span>
+        </div>
+
+        <div><label class="block text-sm font-semibold text-gray-700">Descripción detallada</label><textarea id="contenido" rows="5" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600">{vehiculoAEditar.Content}</textarea></div>
+
+        <button type="submit" id="btnSubmit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg shadow flex justify-center items-center">
+          <span id="btnText">Guardar Cambios</span>
+          <svg id="spinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        </button>
+        <div id="alerta" class="hidden p-4 rounded-lg text-center font-medium"></div>
+      </form>
+    )}
+  </div>
+
+  <script is:inline define:vars={{ vehiculoAEditar, urlAppsScriptServer, wmConfig }}>
+    const URL_APPS_SCRIPT = urlAppsScriptServer || "https://script.google.com/macros/s/AKfycbzOu94N3mG5P7Z6jknzEnqtL1aDTKesxJ8jX2VgAdHw0doUeRdhr5X5O48COhhIcPy66g/exec";
+    const URL_CSV_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUXSBa4HqBFoaoXLVQW8Pvh7BRTfIhc3K8fz9wqBZHrE3DM1oo-A5v-5vsB74osUxNYOD5zEFA60vF/pub?gid=1038341741&single=true&output=csv";
+
+    const formPublicar = document.getElementById('formPublicar');
+    const galeria = document.getElementById('galeriaPrevia');
+
+    if (formPublicar) {
+      async function cargarDatosDinámicos() {
+        if (typeof Papa === 'undefined') {
+          setTimeout(cargarDatosDinámicos, 500);
+          return;
+        }
+
+        Papa.parse(URL_CSV_GOOGLE_SHEET, {
+          download: true, header: true, 
+          complete: function(results) {
+            const modelosToyota = new Set();
+            const colores = new Set();
+            const tipos = new Set();
+            
+            results.data.forEach(item => {
+              if (item['Categorías'] && item['Categorías'].toLowerCase().startsWith('toyota')) {
+                const partes = item['Categorías'].split('>');
+                if (partes.length > 1) modelosToyota.add(partes[1].trim());
+              }
+              if (item['color_']) colores.add(item['color_'].trim());
+              if (item['tipo']) tipos.add(item['tipo'].trim());
+            });
+            
+            llenarSelect('modelo', Array.from(modelosToyota).sort(), 'Seleccione Modelo');
+            llenarSelect('color', Array.from(colores).sort(), 'Seleccione Color');
+            llenarSelect('tipo', Array.from(tipos).sort(), 'Seleccione Tipo');
+
+            // Seleccionar valores previos
+            if (vehiculoAEditar) {
+              const colorEl = document.getElementById('color');
+              const tipoEl = document.getElementById('tipo');
+              const modeloEl = document.getElementById('modelo');
+
+              if (colorEl) colorEl.value = vehiculoAEditar.Color || vehiculoAEditar.color_ || "";
+              if (tipoEl) tipoEl.value = vehiculoAEditar.Tipo || vehiculoAEditar.tipo || "";
+              if (vehiculoAEditar['Categorías'] && modeloEl) {
+                const partes = vehiculoAEditar['Categorías'].split('>');
+                if (partes.length > 1) modeloEl.value = partes[1].trim();
+              }
+            }
+          }
+        });
+      }
+
+      function llenarSelect(id, array, textoDefault) {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<option value="">${textoDefault}</option>` + array.map(item => `<option value="${item}">${item}</option>`).join('');
+      }
+
+      cargarDatosDinámicos();
+
+      let archivosAlmacenados = []; 
+
+      function initSortable() {
+         if (typeof Sortable !== 'undefined' && galeria) {
+            new Sortable(galeria, { animation: 150, onEnd: actualizarEtiquetaPortada });
+         } else {
+            setTimeout(initSortable, 500);
+         }
+      }
+      initSortable();
+
+      // Cargar imágenes existentes
+      if (vehiculoAEditar && vehiculoAEditar.Images && galeria) {
+        const idsDrive = vehiculoAEditar.Images.split('|').map(id => id.trim()).filter(Boolean);
+        idsDrive.forEach(driveId => {
+          const idUnico = Math.random().toString(36).substr(2, 9);
+          archivosAlmacenados.push({ id: idUnico, tipo: 'existente', driveId: driveId });
+          crearMiniatura(idUnico, `https://drive.google.com/thumbnail?id=${driveId}&sz=w300`);
+        });
+      }
+
+      const inputOculto = document.getElementById('inputImagenesOculto');
+      if (inputOculto) {
+        inputOculto.addEventListener('change', function(e) {
+          Array.from(e.target.files).forEach(file => {
+            const idUnico = Math.random().toString(36).substr(2, 9);
+            archivosAlmacenados.push({ id: idUnico, tipo: 'nueva', file: file });
+            const reader = new FileReader();
+            reader.onload = (ev) => crearMiniatura(idUnico, ev.target.result);
+            reader.readAsDataURL(file);
+          });
+          this.value = ""; 
+        });
+      }
+
+      function crearMiniatura(idUnico, src) {
+        if (!galeria) return;
+        const divWrapper = document.createElement('div');
+        divWrapper.className = 'relative group cursor-move aspect-video bg-gray-200 rounded overflow-hidden shadow';
+        divWrapper.setAttribute('data-id', idUnico);
+        divWrapper.innerHTML = `
+          <img src="${src}" class="object-cover w-full h-full pointer-events-none">
+          <button type="button" onclick="eliminarImagen('${idUnico}', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600">✕</button>
+          <div class="etiqueta-portada hidden absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[10px] text-center py-0.5 font-bold">PORTADA</div>
+        `;
+        galeria.appendChild(divWrapper);
+        actualizarEtiquetaPortada();
+      }
+
+      window.eliminarImagen = function(id, btnElement) {
+        archivosAlmacenados = archivosAlmacenados.filter(item => item.id !== id);
+        btnElement.parentElement.remove(); 
+        actualizarEtiquetaPortada();
+      }
+
+      function actualizarEtiquetaPortada() {
+        if (!galeria) return;
+        const items = galeria.children;
+        for(let i=0; i<items.length; i++){
+          const etiqueta = items[i].querySelector('.etiqueta-portada');
+          if (etiqueta) {
+             if(i === 0) etiqueta.classList.remove('hidden'); else etiqueta.classList.add('hidden');
+          }
+        }
+      }
+
+      const slugify = (t) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
+
+      const aplicarMarcaDeAgua = (file) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const reader = new FileReader();
+          reader.onload = (e) => img.src = e.target.result;
+          reader.readAsDataURL(file);
+
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Optimización: Redimensionar si la imagen es muy grande (máx 1200px)
+            const MAX_WIDTH = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const wm = new Image();
+            wm.src = wmConfig.url;
+            wm.onload = () => {
+              // Marca de agua proporcional al ancho configurado
+              const wmWidth = canvas.width * wmConfig.scale;
+              const wmHeight = (wm.height * wmWidth) / wm.width;
+
+              // Posición: Centrada y con margen configurable
+              const x = (canvas.width - wmWidth) / 2;
+              const y = canvas.height - wmHeight - wmConfig.bottom;
+
+              ctx.globalAlpha = wmConfig.opacity;
+              ctx.drawImage(wm, x, y, wmWidth, wmHeight);
+              ctx.globalAlpha = 1.0;
+              resolve({ 
+                base64: canvas.toDataURL('image/jpeg', 0.7), // Calidad optimizada para web
+                nombre: file.name, 
+                mimeType: 'image/jpeg',   // Usar ambos solo por seguridad
+                tipo: 'image/jpeg'        // Algunos scripts de Apps Script prefieren 'tipo'
+              });
+            };
+            wm.onerror = () => {
+              console.error("Error cargando marca de agua");
+              const readerFallback = new FileReader();
+              readerFallback.onload = (env) => resolve({ base64: env.target.result, nombre: file.name, mimeType: file.type, tipo: file.type });
+              readerFallback.readAsDataURL(file);
+            };
+          };
+          img.onerror = () => reject(new Error("Error cargando la imagen para procesar"));
+        });
+      };
+
+      formPublicar.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmit'); const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('spinner'); const alerta = document.getElementById('alerta');
+
+        const elementosDOMOrdenados = Array.from(galeria.children);
+        const ordenArchivos = elementosDOMOrdenados.map(el => archivosAlmacenados.find(item => item.id === el.getAttribute('data-id')));
+
+        if(ordenArchivos.length === 0) { alert("Debe haber al menos una foto"); return; }
+        btn.disabled = true; btn.classList.add('opacity-75'); spinner.classList.remove('hidden'); alerta.classList.add('hidden');
+        if (btnText) btnText.innerText = "Guardando cambios...";
+
+        try {
+          const imagenesProcesadas = await Promise.all(ordenArchivos.map(async (item) => {
+            if (!item) return null;
+            if (item.tipo === 'existente') return { tipo: 'existente', driveId: item.driveId };
+            const procesada = await aplicarMarcaDeAgua(item.file);
+            return {
+              tipo: 'nueva',
+              base64: procesada.base64,
+              nombre: procesada.nombre,
+              mimeType: procesada.mimeType,
+              tipoMime: procesada.tipo // Alias adicional
+            };
+          }));
+          const imagenesFiltradas = imagenesProcesadas.filter(Boolean);
+          
+          const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+          const isAdmin = (localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes((localStorage.getItem('userEmail') || "").trim().toLowerCase());
+
+          const payload = {
+            accion: "editar",
+            idSecuencial: document.getElementById('idSecuencial').value,
+            titulo: document.getElementById('titulo').value,
+            categoriaUnida: "Toyota>" + document.getElementById('modelo').value,
+            anio: document.getElementById('anio').value, precio: document.getElementById('precio').value, kilometraje: document.getElementById('kilometraje').value,
+            transmision: document.getElementById('transmision').value, combustible: document.getElementById('combustible').value, motor: document.getElementById('motor').value, color: document.getElementById('color').value,
+            digitoPlaca: document.getElementById('digitoPlaca').value, ciudadPlaca: document.getElementById('ciudadPlaca').value, nacionalidad: document.getElementById('nacionalidad').value, tipo: document.getElementById('tipo').value,
+            dueno: document.getElementById('dueno').value, contenido: document.getElementById('contenido').value,
+            imagenesOrdenadas: imagenesFiltradas,
+            usuario: (localStorage.getItem('userEmail') || "usuario_desconocido").trim().toLowerCase(),
+            publicado: isAdmin
+          };
+
+          const respuesta = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payload) });
+          const resultado = await respuesta.json();
+
+          alerta.classList.remove('hidden', 'bg-red-100', 'text-red-800');
+          if (resultado.exito) {
+            alerta.classList.add('bg-green-100', 'text-green-800'); 
+            alerta.innerText = "¡Cambios guardados! Redireccionando...";
+            const slug = slugify(document.getElementById('titulo').value);
+            const idParaRedirect = document.getElementById('idSecuencial').value;
+            setTimeout(() => {
+              window.location.href = `/${idParaRedirect}/${slug}`;
+            }, 1500);
+          } else throw new Error(resultado.mensaje);
+
+        } catch (error) {
+          alerta.classList.remove('hidden', 'bg-green-100', 'text-green-800'); alerta.classList.add('bg-red-100', 'text-red-800'); alerta.innerText = "Error: " + error.message;
+        } finally {
+          btn.disabled = false; btn.classList.remove('opacity-75'); spinner.classList.add('hidden');
+          if (btnText) btnText.innerText = "Guardar Cambios";
+        }
+      });
+    }
+  </script>
+</Layout>

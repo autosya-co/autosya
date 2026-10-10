@@ -1,0 +1,207 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+---
+
+<Layout title="Laboratorio de Marcas de Agua">
+  <Navbar />
+  
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Laboratorio de Marcas de Agua</h1>
+      <p class="text-gray-500">Prueba nuevas configuraciones sin afectar el sitio real.</p>
+    </div>
+
+    <!-- Panel de Control -->
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+      <div class="flex flex-col md:flex-row gap-8 items-center">
+        
+        <!-- Upload -->
+        <div class="w-full md:w-1/2">
+          <label class="block text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">1. Sube una foto de prueba</label>
+          <div id="dropzone" class="border-2 border-dashed border-red-200 bg-red-50 hover:bg-red-100 rounded-xl p-10 text-center cursor-pointer transition-all group relative">
+            <i data-lucide="image-plus" class="w-12 h-12 text-red-400 mx-auto mb-4 group-hover:scale-110 transition-transform"></i>
+            <p class="text-red-800 font-bold">Seleccionar imagen</p>
+            <p class="text-red-400 text-xs mt-2 italic">(No se guardará en el servidor)</p>
+            <input type="file" id="inputFoto" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="w-full md:w-1/2 space-y-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+          <label class="block text-sm font-bold text-gray-700 uppercase tracking-wider">2. Ajustes de la Marca</label>
+          
+          <!-- Nueva opción: Subir propia marca -->
+          <div class="bg-white p-4 rounded-lg border border-red-100 shadow-sm">
+             <label class="block text-[10px] font-black text-red-600 uppercase mb-2">Cambiar Imagen de Marca</label>
+             <input type="file" id="inputMarca" accept="image/*" class="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+             <p class="text-[9px] text-gray-400 mt-2 italic">* Por defecto usa /marca_de_agua_toyota.jpeg</p>
+          </div>
+
+          <div>
+            <label class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+              ESCALE (ANCHO %) <span id="valScale">50%</span>
+            </label>
+            <input type="range" id="rangeScale" min="10" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+          </div>
+
+          <div>
+            <label class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+              OPACIDAD <span id="valOpacity">100%</span>
+            </label>
+            <input type="range" id="rangeOpacity" min="10" max="100" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+          </div>
+
+          <div>
+            <label class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+              DISTANCIA FONDO (PX) <span id="valBottom">3px</span>
+            </label>
+            <input type="range" id="rangeBottom" min="0" max="100" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+          </div>
+
+          <button id="btnProcesar" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 rounded-xl shadow-lg shadow-red-500/30 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            Actualizar Previsualización
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Visualización -->
+    <div id="loading" class="hidden flex flex-col items-center py-10">
+      <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <div id="containerResultados" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div>
+        <h3 class="text-xs font-black text-gray-400 mb-3 uppercase tracking-tighter">Original</h3>
+        <div class="rounded-xl overflow-hidden shadow-md border border-gray-200 bg-gray-100">
+          <img id="imgOriginal" src="#" alt="Original" class="w-full h-auto">
+        </div>
+      </div>
+      <div>
+        <h3 class="text-xs font-black text-red-600 mb-3 uppercase tracking-tighter">Con Nueva Marca</h3>
+        <div class="rounded-xl overflow-hidden shadow-2xl border-4 border-red-500 bg-gray-900 relative">
+          <img id="imgResultado" src="#" alt="Resultado" class="w-full h-auto">
+          <a id="btnDescargar" href="#" download="toyota_usados_test.jpg" class="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-gray-900 font-bold px-4 py-2 rounded-lg text-xs shadow-xl transition-all border border-gray-200/50 backdrop-blur-sm">Descargar Prueba</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script is:inline>
+    const inputFoto = document.getElementById('inputFoto');
+    const inputMarca = document.getElementById('inputMarca');
+    const imgOriginal = document.getElementById('imgOriginal');
+    const imgResultado = document.getElementById('imgResultado');
+    const btnDescargar = document.getElementById('btnDescargar');
+    const loading = document.getElementById('loading');
+    const container = document.getElementById('containerResultados');
+    
+    // Sliders
+    const rangeScale = document.getElementById('rangeScale');
+    const rangeOpacity = document.getElementById('rangeOpacity');
+    const rangeBottom = document.getElementById('rangeBottom');
+    
+    let currentFile = null;
+    let customWatermarkFile = null;
+
+    inputFoto.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      currentFile = file;
+      
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        imgOriginal.src = ev.target.result;
+        container.classList.remove('hidden');
+        procesarMarca();
+      };
+      reader.readAsDataURL(file);
+    };
+
+    inputMarca.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        customWatermarkFile = file;
+        procesarMarca();
+      }
+    };
+
+    document.getElementById('btnProcesar').onclick = () => procesarMarca();
+    
+    // Actualizar valores en tiempo real
+    rangeScale.oninput = () => document.getElementById('valScale').innerText = rangeScale.value + '%';
+    rangeOpacity.oninput = () => document.getElementById('valOpacity').innerText = rangeOpacity.value + '%';
+    rangeBottom.oninput = () => document.getElementById('valBottom').innerText = rangeBottom.value + 'px';
+
+    async function procesarMarca() {
+      if (!currentFile) return;
+      
+      loading.classList.remove('hidden');
+      imgResultado.style.opacity = '0.3';
+
+      const scaleFactor = parseInt(rangeScale.value) / 100;
+      const opacity = parseInt(rangeOpacity.value) / 100;
+      const bottomOffset = parseInt(rangeBottom.value);
+
+      try {
+        const res = await aplicarMarca(currentFile, customWatermarkFile, scaleFactor, opacity, bottomOffset);
+        imgResultado.src = res;
+        btnDescargar.href = res;
+      } catch (err) {
+        console.error(err);
+        alert("Error al procesar: " + err.message);
+      } finally {
+        loading.classList.add('hidden');
+        imgResultado.style.opacity = '1';
+      }
+    }
+
+    function aplicarMarca(file, wmFile, scale, opacity, offset) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => img.src = e.target.result;
+        reader.readAsDataURL(file);
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          const wm = new Image();
+          if (wmFile) {
+            const readerWM = new FileReader();
+            readerWM.onload = (e) => wm.src = e.target.result;
+            readerWM.readAsDataURL(wmFile);
+          } else {
+            wm.src = '/marca_de_agua_toyota.jpeg';
+          }
+
+          wm.onload = () => {
+            const wmWidthRequested = canvas.width * scale;
+            const wmHeightRequested = (wm.height * wmWidthRequested) / wm.width;
+
+            const x = (canvas.width - wmWidthRequested) / 2;
+            const y = canvas.height - wmHeightRequested - offset;
+
+            ctx.globalAlpha = opacity;
+            ctx.drawImage(wm, x, y, wmWidthRequested, wmHeightRequested);
+            ctx.globalAlpha = 1.0;
+            
+            resolve(canvas.toDataURL('image/jpeg', 0.95));
+          };
+          wm.onerror = () => reject(new Error("No se pudo cargar la imagen de marca de agua"));
+        };
+      });
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</Layout>

@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
+const { id } = Astro.params;
+
+let carro: any = null;
+try {
+  let paramId = id;
+  // Búsqueda del ID como String
+  let q = query(collection(db, "toyotausados"), where("ID", "==", String(paramId).trim()));
+  let snapshot = await getDocs(q);
+  
+  // Respaldo en caso de que esté guardado como Número
+  if (snapshot.empty && !isNaN(Number(paramId))) {
+    q = query(collection(db, "toyotausados"), where("ID", "==", Number(paramId)));
+    snapshot = await getDocs(q);
+  }
+  
+  if (!snapshot.empty) {
+    carro = snapshot.docs[0].data();
+  }
+} catch (e) {
+  console.error("Error obteniendo vehiculo para redirección:", e);
+}
+
+if (carro) {
+  // Función slugify idéntica a la usada en la ficha para consistencia de URLs
+  const slugify = (t: any) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
+  const url = `/${carro.ID}/${slugify(carro.Title)}`;
+  return Astro.redirect(url);
+}
+
+// Si no se encuentra el ID, redirigir al home
+return Astro.redirect('/');
+---
