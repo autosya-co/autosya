@@ -7,7 +7,7 @@ import Navbar from '../../components/Navbar.astro';
 <Layout title="Gestión de Usuarios">
   <script is:inline>
     if (typeof localStorage !== 'undefined' && localStorage.getItem('isAdmin') !== 'true') {
-      window.location.href = '/';
+      window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
   </script>
   <Navbar />
@@ -162,7 +162,7 @@ import Navbar from '../../components/Navbar.astro';
               <span class="px-3 py-1 rounded-full text-xs font-bold ${esAdmin ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">${esAdmin ? 'Administrador' : 'Usuario'}</span>
             </td>
             <td class="px-6 py-4 text-right">
-              <a href="https://wa.me/${encodeURIComponent(u.email.includes('+57') ? '' : '57')}?text=${encodeURIComponent('Hola ' + (u.nombre || '') + ', te contactamos desde Toyota Usados.')}"
+              <a href="https://wa.me/${encodeURIComponent(u.email.includes('+57') ? '' : '57')}?text=${encodeURIComponent('Hola ' + (u.nombre || '') + ', te contactamos desde Autosya (autosya.co).')}"
                 target="_blank"
                 class="inline-flex items-center gap-1.5 text-xs bg-green-50 hover:bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg transition">
                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>

@@ -1,0 +1,7 @@
+{
+  "name": "Autosya",
+  "description": "Catálogo y gestión de vehículos usados Toyota Autosya",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

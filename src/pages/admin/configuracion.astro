@@ -11,7 +11,7 @@ const config = configSnap.exists() ? configSnap.data() : {};
 <Layout title="Configuración del Negocio">
   <script is:inline>
     if (typeof localStorage !== 'undefined' && localStorage.getItem('isAdmin') !== 'true') {
-      window.location.href = '/';
+      window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
   </script>
   <Navbar />
@@ -63,7 +63,7 @@ const config = configSnap.exists() ? configSnap.data() : {};
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Email de Contacto</label>
-            <input type="email" id="cfg_email" value={config.email || ''} placeholder="Ej: contacto@toyotausados.com"
+            <input type="email" id="cfg_email" value={config.email || ''} placeholder="Ej: contacto@autosya.co"
               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
           </div>
           <div class="md:col-span-2">

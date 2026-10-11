@@ -7,6 +7,7 @@ interface Props {
 import Footer from '../components/Footer.astro';
 
 const { title } = Astro.props;
+const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
 ---
 
 <!doctype html>
@@ -15,13 +16,13 @@ const { title } = Astro.props;
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{title}</title>
-		<meta name="description" content="Encuentra tu Toyota usado ideal. Compra, venta, consignación, permuta y financiación en Colombia." />
+		<meta name="description" content="Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia." />
 		<meta name="theme-color" content="#dc2626" />
 		<link rel="manifest" href="/manifest.json" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="Toyota Usados" />
+		<meta name="apple-mobile-web-app-title" content="Autosya" />
 		<link rel="apple-touch-icon" href="/favicon.svg" />
 		<!-- Imports for plugins previously loaded via CDN (Lucide, PapaParse, Sortable) -->
 		<!-- We load them from CDN as inline to keep the original logic untouched first, or use the node modules -->
@@ -29,12 +30,13 @@ const { title } = Astro.props;
 		<script is:inline src="https://unpkg.com/lucide@latest"></script>
 		<script is:inline src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
+		<meta id="cfgGoogleClientId" name="google-client-id" content={googleClientId} />
 		<!-- Google Identity Services -->
 		<script is:inline src="https://accounts.google.com/gsi/client" async defer></script>
 		<script is:inline>
 			// Global auth configuration
 			window.ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
-			window.GOOGLE_CLIENT_ID = '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
+			window.GOOGLE_CLIENT_ID = document.getElementById('cfgGoogleClientId')?.getAttribute('content') || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
 
 			// Check auth state immediately to prevent flicker
 			if (typeof localStorage !== 'undefined') {
@@ -86,17 +88,59 @@ const { title } = Astro.props;
 				}
 			}
 
+			window.loginWithEmail = async function(email, name) {
+				try {
+					const trimmedEmail = (email || '').toLowerCase().trim();
+					if (!trimmedEmail) return;
+					localStorage.setItem('isLoggedIn', 'true');
+					localStorage.setItem('userEmail', trimmedEmail);
+					localStorage.setItem('userName', name || trimmedEmail.split('@')[0]);
+					document.documentElement.classList.add('is-logged-in');
+
+					if (window.ADMIN_EMAILS && window.ADMIN_EMAILS.includes(trimmedEmail)) {
+						localStorage.setItem('isAdmin', 'true');
+						document.documentElement.classList.add('is-admin');
+					} else {
+						localStorage.removeItem('isAdmin');
+					}
+
+					if (window.saveUserToFirestore) {
+						await window.saveUserToFirestore({
+							email: trimmedEmail,
+							name: name || trimmedEmail.split('@')[0],
+							picture: null
+						});
+					}
+					window.location.reload();
+				} catch(err) {
+					console.error("Error al iniciar sesión:", err);
+				}
+			};
+
 			window.initGoogleAuth = function() {
-				if (window.google) {
-					window.google.accounts.id.initialize({
-						client_id: window.GOOGLE_CLIENT_ID,
-						callback: handleCredentialResponse,
-						auto_select: true // Intenta loguear automáticamente si la sesión está abierta en Chrome
-					});
-					
-					// Mostramos el popup si nadie está logueado
-					if (localStorage.getItem('isLoggedIn') !== 'true') {
-						window.google.accounts.id.prompt();
+				if (window.google && window.google.accounts && window.google.accounts.id) {
+					try {
+						window.google.accounts.id.initialize({
+							client_id: window.GOOGLE_CLIENT_ID,
+							callback: handleCredentialResponse,
+							auto_select: false,
+							use_fedcm_for_prompt: false
+						});
+
+						// Solo intentamos One Tap automático fuera de iframes si no hay sesión activa
+						const isInIframe = window.self !== window.top;
+						if (!isInIframe && localStorage.getItem('isLoggedIn') !== 'true') {
+							window.google.accounts.id.prompt((notification) => {
+								if (notification && notification.isNotDisplayed && notification.isNotDisplayed()) {
+									console.info("Google One Tap no disponible:", notification.getNotDisplayedReason());
+								}
+							});
+						}
+
+						// Notificar que Google Auth está listo para renderizar botones si es necesario
+						window.dispatchEvent(new CustomEvent('google-auth-ready'));
+					} catch(e) {
+						console.warn("Aviso al inicializar Google Auth:", e);
 					}
 				}
 			};

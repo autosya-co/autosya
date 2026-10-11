@@ -9,7 +9,7 @@ export default defineConfig({
   adapter: node({ mode: 'standalone' }),
   server: {
     host: '0.0.0.0',
-    port: process.env.PORT ? parseInt(process.env.PORT) : 8080
+    port: 3000
   },
   image: {
     service: { entrypoint: 'astro/assets/services/noop' }

@@ -68,6 +68,7 @@ try {
     <div id="gridPublicaciones" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     <input type="hidden" id="urlAppsScriptServer" value={urlAppsScriptServer} />
     <script id="all-publications-data" type="application/json" set:html={JSON.stringify(allFirebaseData)}></script>
+  </div>
 
   <script>
     import { db } from '../lib/firebase';

@@ -6,17 +6,17 @@
     "node": "22"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --host 0.0.0.0 --port 3000",
     "build": "astro build",
-    "start": "node server.mjs",
-    "preview": "astro preview",
+    "start": "node dist/server/entry.mjs",
+    "preview": "astro preview --host 0.0.0.0 --port 3000",
+    "lint": "astro check",
     "astro": "astro"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
     "@astrojs/node": "^10.0.4",
-    "@google-cloud/vertexai": "^1.12.0",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^1.52.0",
     "@tailwindcss/vite": "^4.2.2",
     "astro": "^6.1.1",
     "firebase": "^12.11.0",

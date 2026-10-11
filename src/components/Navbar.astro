@@ -4,14 +4,14 @@ import { doc, getDoc } from 'firebase/firestore';
 
 const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
 const config = configSnap.exists() ? configSnap.data() : {};
-const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/12qF7M3gjzCyPvlgbNO08NKxMcTCBnfuR";
+const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/1M4xnozfvNODGNSpXfeiY1moBLY3CmKHj";
 ---
 
 <nav class="bg-white shadow relative z-50">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center bg-white relative z-50">
     <!-- Logo -->
     <a href="/" class="hover:opacity-80 transition flex-shrink-0">
-      <img src={logoUrl} alt="Toyota Usados Logo" class="h-14 w-auto object-contain max-w-[60vw] md:max-w-none" />
+      <img src={logoUrl} alt="Autosya Logo" class="h-14 w-auto object-contain max-w-[60vw] md:max-w-none" />
     </a>
 
     <!-- Main Navigation (Desktop) -->
@@ -126,6 +126,62 @@ const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/12qF7M3gjzCy
     </div>
   </div>
 
+  <!-- Modal de Inicio de Sesión -->
+  <div id="loginModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
+    <div id="loginModalOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity cursor-pointer"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center z-10 border border-gray-100">
+      <button id="closeLoginModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition cursor-pointer">
+        <i data-lucide="x" class="w-5 h-5 pointer-events-none"></i>
+      </button>
+
+      <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="user" class="w-6 h-6"></i>
+      </div>
+
+      <h3 class="text-xl font-bold text-gray-900 mb-1">Iniciar Sesión</h3>
+      <p class="text-xs text-gray-500 mb-6">Accede a tus publicaciones y opciones de cuenta</p>
+
+      <!-- Botón oficial de Google -->
+      <div id="googleLoginBtnContainer" class="flex justify-center mb-4 min-h-[40px]"></div>
+
+      <div class="relative my-4">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-gray-400">O ingresa con tu correo</span></div>
+      </div>
+
+      <!-- Acceso alternativo por correo -->
+      <form id="emailLoginForm" class="space-y-3">
+        <input 
+          type="email" 
+          id="loginEmailInput" 
+          placeholder="tu-correo@ejemplo.com" 
+          required 
+          class="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+        />
+        <button 
+          type="submit" 
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-md cursor-pointer flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          Continuar
+        </button>
+      </form>
+
+      <!-- Acceso rápido Administrador -->
+      <div class="mt-5 pt-4 border-t border-gray-100 space-y-2">
+        <button 
+          type="button" 
+          onclick="if(window.loginWithEmail) window.loginWithEmail('autosya.co@gmail.com', 'Admin Autosya')"
+          class="w-full bg-gray-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="shield-check" class="w-4 h-4 text-red-500"></i>
+          Acceso Rápido Administrador (autosya.co@gmail.com)
+        </button>
+        <a href="/admin/login" class="block text-[11px] text-gray-500 hover:text-red-600 transition underline">
+          Ir a página de acceso administrativo
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script is:inline>
     document.addEventListener('DOMContentLoaded', () => {
       // Mobile Menu
@@ -197,16 +253,69 @@ const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/12qF7M3gjzCy
         setTimeout(() => overlay.classList.add('hidden'), 300);
       }
 
+      // Login Modal
+      const loginModal = document.getElementById('loginModal');
+      const closeLoginModalBtn = document.getElementById('closeLoginModalBtn');
+      const loginModalOverlay = document.getElementById('loginModalOverlay');
+      const emailLoginForm = document.getElementById('emailLoginForm');
+      const loginEmailInput = document.getElementById('loginEmailInput');
+
+      function renderGoogleButton() {
+        const container = document.getElementById('googleLoginBtnContainer');
+        if (container && window.google && window.google.accounts && window.google.accounts.id) {
+          try {
+            container.innerHTML = '';
+            window.google.accounts.id.renderButton(container, {
+              theme: 'outline',
+              size: 'large',
+              type: 'standard',
+              text: 'signin_with',
+              shape: 'rectangular',
+              width: 250
+            });
+          } catch(e) {
+            console.warn("No se pudo renderizar botón de Google:", e);
+          }
+        }
+      }
+
+      function openLoginModal() {
+        if (!loginModal) return;
+        loginModal.classList.remove('hidden');
+        loginModal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        renderGoogleButton();
+        if (window.lucide) window.lucide.createIcons();
+      }
+
+      function closeLoginModal() {
+        if (!loginModal) return;
+        loginModal.classList.add('hidden');
+        loginModal.classList.remove('flex');
+        document.body.style.overflow = '';
+      }
+
+      if (closeLoginModalBtn) closeLoginModalBtn.addEventListener('click', closeLoginModal);
+      if (loginModalOverlay) loginModalOverlay.addEventListener('click', closeLoginModal);
+
+      if (emailLoginForm) {
+        emailLoginForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const email = loginEmailInput ? loginEmailInput.value.trim() : '';
+          if (email && window.loginWithEmail) {
+            window.loginWithEmail(email);
+          }
+        });
+      }
+
+      window.addEventListener('google-auth-ready', renderGoogleButton);
+
       if (userBtn) {
         userBtn.addEventListener('click', () => {
           if (localStorage.getItem('isLoggedIn') === 'true') {
             openDrawer();
           } else {
-            if (window.google && window.google.accounts) {
-              window.google.accounts.id.prompt();
-            } else {
-              alert("Por favor espera un momento a que cargue Google Auth.");
-            }
+            openLoginModal();
           }
         });
       }

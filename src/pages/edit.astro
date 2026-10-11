@@ -78,10 +78,12 @@ const wmConfig = {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label class="block text-sm font-semibold text-gray-700">Marca</label>
-            <input type="text" disabled value="Toyota" class="mt-1 w-full px-4 py-2 border border-gray-300 bg-gray-100 rounded-lg text-gray-500 font-bold">
+            <select id="marca" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
+              <option value="">Cargando marcas...</option>
+            </select>
           </div>
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Modelo de Toyota</label>
+            <label class="block text-sm font-semibold text-gray-700">Modelo</label>
             <select id="modelo" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
               <option value="">Cargando modelos...</option>
             </select>
@@ -179,34 +181,83 @@ const wmConfig = {
         Papa.parse(URL_CSV_GOOGLE_SHEET, {
           download: true, header: true, 
           complete: function(results) {
-            const modelosToyota = new Set();
+            const modelosPorMarca = {};
+            const marcas = new Set(['Toyota', 'Chevrolet', 'Renault', 'Mazda', 'Ford', 'Nissan', 'Kia', 'Hyundai', 'Volkswagen', 'Suzuki', 'Honda', 'Mitsubishi', 'BMW', 'Mercedes-Benz', 'Jeep']);
+            const todosModelos = new Set();
             const colores = new Set();
             const tipos = new Set();
             
             results.data.forEach(item => {
-              if (item['Categorías'] && item['Categorías'].toLowerCase().startsWith('toyota')) {
+              if (item['Categorías']) {
                 const partes = item['Categorías'].split('>');
-                if (partes.length > 1) modelosToyota.add(partes[1].trim());
+                const m = partes[0] ? partes[0].trim() : '';
+                const mod = partes.length > 1 ? partes[1].trim() : '';
+                if (m) {
+                  marcas.add(m);
+                  if (!modelosPorMarca[m]) modelosPorMarca[m] = new Set();
+                  if (mod) {
+                    modelosPorMarca[m].add(mod);
+                    todosModelos.add(mod);
+                  }
+                }
               }
               if (item['color_']) colores.add(item['color_'].trim());
               if (item['tipo']) tipos.add(item['tipo'].trim());
             });
             
-            llenarSelect('modelo', Array.from(modelosToyota).sort(), 'Seleccione Modelo');
+            window.__modelosPorMarca = modelosPorMarca;
+            window.__todosModelos = Array.from(todosModelos).sort();
+
+            llenarSelect('marca', Array.from(marcas).sort(), 'Seleccione Marca');
             llenarSelect('color', Array.from(colores).sort(), 'Seleccione Color');
             llenarSelect('tipo', Array.from(tipos).sort(), 'Seleccione Tipo');
 
+            const elMarca = document.getElementById('marca');
+            if (elMarca) {
+              elMarca.addEventListener('change', function() {
+                const marcaSel = this.value;
+                const mods = window.__modelosPorMarca && window.__modelosPorMarca[marcaSel]
+                  ? Array.from(window.__modelosPorMarca[marcaSel]).sort()
+                  : (window.__todosModelos || []);
+                llenarSelect('modelo', mods, mods.length > 0 ? 'Seleccione Modelo' : 'Escriba o seleccione modelo');
+              });
+            }
+
             // Seleccionar valores previos
             if (vehiculoAEditar) {
+              const marcaEl = document.getElementById('marca');
+              const modeloEl = document.getElementById('modelo');
               const colorEl = document.getElementById('color');
               const tipoEl = document.getElementById('tipo');
-              const modeloEl = document.getElementById('modelo');
 
               if (colorEl) colorEl.value = vehiculoAEditar.Color || vehiculoAEditar.color_ || "";
               if (tipoEl) tipoEl.value = vehiculoAEditar.Tipo || vehiculoAEditar.tipo || "";
-              if (vehiculoAEditar['Categorías'] && modeloEl) {
+
+              let vMarca = vehiculoAEditar.marca || vehiculoAEditar.Marca || "";
+              let vModelo = vehiculoAEditar.modelo || vehiculoAEditar.Modelo || "";
+              if (vehiculoAEditar['Categorías']) {
                 const partes = vehiculoAEditar['Categorías'].split('>');
-                if (partes.length > 1) modeloEl.value = partes[1].trim();
+                if (partes.length > 0 && !vMarca) vMarca = partes[0].trim();
+                if (partes.length > 1 && !vModelo) vModelo = partes[1].trim();
+              }
+
+              if (marcaEl && vMarca) {
+                if (!Array.from(marcaEl.options).some(o => o.value.toLowerCase() === vMarca.toLowerCase())) {
+                  marcaEl.insertAdjacentHTML('beforeend', `<option value="${vMarca}" selected>${vMarca}</option>`);
+                }
+                marcaEl.value = vMarca;
+              }
+
+              const mods = vMarca && window.__modelosPorMarca && window.__modelosPorMarca[vMarca]
+                ? Array.from(window.__modelosPorMarca[vMarca]).sort()
+                : (window.__todosModelos || []);
+              llenarSelect('modelo', mods, 'Seleccione Modelo');
+
+              if (modeloEl && vModelo) {
+                if (!Array.from(modeloEl.options).some(o => o.value.toLowerCase() === vModelo.toLowerCase())) {
+                  modeloEl.insertAdjacentHTML('beforeend', `<option value="${vModelo}" selected>${vModelo}</option>`);
+                }
+                modeloEl.value = vModelo;
               }
             }
           }
@@ -375,11 +426,16 @@ const wmConfig = {
           const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
           const isAdmin = (localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes((localStorage.getItem('userEmail') || "").trim().toLowerCase());
 
+          const marcaVal = (document.getElementById('marca')?.value || 'Toyota').trim();
+          const modeloVal = (document.getElementById('modelo')?.value || '').trim();
+
           const payload = {
             accion: "editar",
             idSecuencial: document.getElementById('idSecuencial').value,
             titulo: document.getElementById('titulo').value,
-            categoriaUnida: "Toyota>" + document.getElementById('modelo').value,
+            marca: marcaVal,
+            modelo: modeloVal,
+            categoriaUnida: `${marcaVal}>${modeloVal}`,
             anio: document.getElementById('anio').value, precio: document.getElementById('precio').value, kilometraje: document.getElementById('kilometraje').value,
             transmision: document.getElementById('transmision').value, combustible: document.getElementById('combustible').value, motor: document.getElementById('motor').value, color: document.getElementById('color').value,
             digitoPlaca: document.getElementById('digitoPlaca').value, ciudadPlaca: document.getElementById('ciudadPlaca').value, nacionalidad: document.getElementById('nacionalidad').value, tipo: document.getElementById('tipo').value,

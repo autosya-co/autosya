@@ -32,7 +32,7 @@ try {
 }
 ---
 
-<Layout title="Catálogo de Vehículos Toyota Usados">
+<Layout title="Catálogo de Vehículos | autosya.co">
   <Navbar />
   <Hero />
 
@@ -147,12 +147,12 @@ try {
 
         mostrarSkeletons('loading', 8);
 
-        // Filtro: Solo mostrar vehículos que tengan ID, Título, que su categoría incluya "Toyota" y que estén publicados
+        // Filtro: Mostrar vehículos con ID, Título y que estén publicados (todas las categorías)
         inventarioGlobal = results.filter(carro => {
           const idNum = Number(carro.ID) || 0;
           const isApproved = carro.publicado === true || carro.publicado === "true";
           if (idNum > 42300) return isApproved;
-          return carro.ID && carro.Title && (carro['Categorías'] || "").toLowerCase().includes('toyota') && carro.publicado !== false && carro.publicado !== "false";
+          return carro.ID && carro.Title && carro.publicado !== false && carro.publicado !== "false";
         });
         llenarFiltros(inventarioGlobal);
         document.getElementById('loading').classList.add('hidden');
@@ -168,6 +168,8 @@ try {
     function llenarFiltros(datos) {
       const aniosPorModelo = {};
       const modelosPorAnio = {};
+      const modelosPorMarca = {};
+      const todasMarcas = new Set();
       const todosModelos = new Set();
       const todosAnios = new Set();
       const ciudades = new Set();
@@ -175,15 +177,23 @@ try {
       datos.forEach(carro => {
         const anioRaw = carro.a_o || carro.Año || carro.Anio;
         const anio = anioRaw ? String(anioRaw).trim() : null;
-        let modelo = null;
+        let marca = carro.marca || carro.Marca || null;
+        let modelo = carro.modelo || carro.Modelo || null;
         if (carro['Categorías']) {
           const partes = carro['Categorías'].split('>');
-          if (partes.length > 1) modelo = partes[1].trim();
+          if (partes.length > 0 && !marca) marca = partes[0].trim();
+          if (partes.length > 1 && !modelo) modelo = partes[1].trim();
         }
+        if (marca) todasMarcas.add(marca);
         if (modelo) todosModelos.add(modelo);
         if (anio) todosAnios.add(anio);
         const ciudadRaw = carro.ciudad_de_la_placa || carro.Ciudad;
         if (ciudadRaw) ciudades.add(String(ciudadRaw).trim());
+
+        if (marca && modelo) {
+          if (!modelosPorMarca[marca]) modelosPorMarca[marca] = new Set();
+          modelosPorMarca[marca].add(modelo);
+        }
 
         if (modelo && anio) {
           if (!aniosPorModelo[modelo]) aniosPorModelo[modelo] = new Set();
@@ -198,30 +208,50 @@ try {
       Object.keys(aniosPorModelo).forEach(k => { aniosPorModeloArr[k] = [...aniosPorModelo[k]]; });
       const modelosPorAnioArr = {};
       Object.keys(modelosPorAnio).forEach(k => { modelosPorAnioArr[k] = [...modelosPorAnio[k]]; });
+      const modelosPorMarcaArr = {};
+      Object.keys(modelosPorMarca).forEach(k => { modelosPorMarcaArr[k] = [...modelosPorMarca[k]]; });
 
       // Exponer datos de correlación globalmente
       window.__filtroData = {
         aniosPorModelo: aniosPorModeloArr,
         modelosPorAnio: modelosPorAnioArr,
+        modelosPorMarca: modelosPorMarcaArr,
+        todasMarcas: [...todasMarcas],
         todosModelos: [...todosModelos],
         todosAnios: [...todosAnios],
       };
 
+      // Llenar Marca
+      const selectMarca = document.getElementById('filtroMarca');
+      if (selectMarca) {
+        selectMarca.innerHTML = '<option value="">Cualquier Marca</option>';
+        [...todasMarcas].sort().forEach(marca => {
+          selectMarca.insertAdjacentHTML('beforeend', `<option value="${marca}">${marca}</option>`);
+        });
+      }
+
       // Llenar Modelo
       const selectModelo = document.getElementById('filtroModelo');
-      [...todosModelos].sort().forEach(modelo => {
-        selectModelo.insertAdjacentHTML('beforeend', `<option value="${modelo}">${modelo}</option>`);
-      });
+      if (selectModelo) {
+        selectModelo.innerHTML = '<option value="">Cualquier Modelo</option>';
+        [...todosModelos].sort().forEach(modelo => {
+          selectModelo.insertAdjacentHTML('beforeend', `<option value="${modelo}">${modelo}</option>`);
+        });
+      }
 
       // Llenar Año
       const selectAnio = document.getElementById('filtroAnio');
-      [...todosAnios].sort((a, b) => b - a).forEach(anio => {
-        selectAnio.insertAdjacentHTML('beforeend', `<option value="${anio}">${anio}</option>`);
-      });
+      if (selectAnio) {
+        selectAnio.innerHTML = '<option value="">Cualquier Año</option>';
+        [...todosAnios].sort((a, b) => b - a).forEach(anio => {
+          selectAnio.insertAdjacentHTML('beforeend', `<option value="${anio}">${anio}</option>`);
+        });
+      }
 
       // Llenar Ciudad
       const selectCiudad = document.getElementById('filtroCiudad');
       if (selectCiudad) {
+        selectCiudad.innerHTML = '<option value="">Cualquier Ciudad</option>';
         [...ciudades].sort().forEach(c => {
           selectCiudad.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
         });
@@ -320,8 +350,9 @@ try {
 
     function aplicarFiltros() {
       const texto = document.getElementById('buscador').value.toLowerCase();
-      const modelo = document.getElementById('filtroModelo').value;
-      const anio = document.getElementById('filtroAnio').value;
+      const marca = document.getElementById('filtroMarca')?.value || '';
+      const modelo = document.getElementById('filtroModelo')?.value || '';
+      const anio = document.getElementById('filtroAnio')?.value || '';
       const precioMinInput = document.getElementById('filtroPrecioMin');
       const precioMaxInput = document.getElementById('filtroPrecioMax');
       const kmMinInput = document.getElementById('filtroKmMin');
@@ -337,9 +368,23 @@ try {
 
       inventarioFiltradoGlobal = inventarioGlobal.filter(carro => {
         const cumpleTexto = (carro.Title || "").toLowerCase().includes(texto) || (carro['Categorías'] && carro['Categorías'].toLowerCase().includes(texto)) || (carro.ID && String(carro.ID).includes(texto));
+        
+        let cumpleMarca = true;
+        if (marca !== '') {
+          const catMarca = (carro['Categorías'] || '').split('>')[0].trim().toLowerCase();
+          const carroMarca = (carro.marca || carro.Marca || '').toLowerCase().trim();
+          cumpleMarca = catMarca === marca.toLowerCase() || carroMarca === marca.toLowerCase();
+        }
+
         const cumpleAnio = anio === '' || String(carro.a_o || "").trim() === anio;
+
         let cumpleModelo = true;
-        if (modelo !== '') cumpleModelo = carro['Categorías'] && carro['Categorías'].includes('>' + modelo);
+        if (modelo !== '') {
+          const catModelo = carro['Categorías'] && carro['Categorías'].includes('>') ? carro['Categorías'].split('>')[1].trim().toLowerCase() : '';
+          const carroModelo = (carro.modelo || carro.Modelo || '').toLowerCase().trim();
+          cumpleModelo = catModelo === modelo.toLowerCase() || carroModelo === modelo.toLowerCase() || (carro['Categorías'] && carro['Categorías'].toLowerCase().includes('>' + modelo.toLowerCase()));
+        }
+
         const precio = Number(carro.Price) || 0;
         const cumplePrecio = precio >= precioMin && precio <= precioMax;
         const km = Number(carro.Mileage) || 0;
@@ -347,7 +392,7 @@ try {
         const cumpleTransmision = transmision === '' || (carro.Transmission || '').toLowerCase().includes(transmision.toLowerCase());
         const cumbleCombustible = combustible === '' || (carro.Fuel || carro.combustible || '').toLowerCase().includes(combustible.toLowerCase());
         const cumpleCiudad = ciudad === '' || String(carro.ciudad_de_la_placa || '').toLowerCase() === ciudad.toLowerCase();
-        return cumpleTexto && cumpleAnio && cumpleModelo && cumplePrecio && cumpleKm && cumpleTransmision && cumbleCombustible && cumpleCiudad;
+        return cumpleTexto && cumpleMarca && cumpleAnio && cumpleModelo && cumplePrecio && cumpleKm && cumpleTransmision && cumbleCombustible && cumpleCiudad;
       });
 
       // No revertir aquí ya que inventarioGlobal ya viene ordenado del servidor
@@ -374,8 +419,9 @@ try {
 
     function limpiarFiltros() {
       document.getElementById('buscador').value = '';
-      document.getElementById('filtroAnio').value = '';
-      document.getElementById('filtroModelo').value = '';
+      if (document.getElementById('filtroMarca')) document.getElementById('filtroMarca').value = '';
+      if (document.getElementById('filtroAnio')) document.getElementById('filtroAnio').value = '';
+      if (document.getElementById('filtroModelo')) document.getElementById('filtroModelo').value = '';
       const ids = ['filtroPrecioMin','filtroPrecioMax','filtroKmMin','filtroKmMax','filtroTransmision','filtroCombustible','filtroCiudad'];
       ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
       aplicarFiltros();
@@ -391,6 +437,7 @@ try {
         }
       }
     });
+    document.getElementById('filtroMarca')?.addEventListener('change', aplicarFiltros);
     document.getElementById('filtroAnio').addEventListener('change', aplicarFiltros);
     document.getElementById('filtroModelo').addEventListener('change', aplicarFiltros);
 

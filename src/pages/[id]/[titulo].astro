@@ -46,7 +46,7 @@ if (carro.Images) {
   idsDrive = carro.Images.split('|').map((id: string) => id.trim()).filter((id: string) => id !== '');
 }
 
-const mensaje = encodeURIComponent(`Hola, estoy interesado en el vehículo *${carro.Title}* que vi en toyotausados.com.`);
+const mensaje = encodeURIComponent(`Hola, estoy interesado en el vehículo *${carro.Title}* que vi en autosya.co.`);
 const urlWhatsapp = 'https://wa.me/573202832616?text=' + mensaje;
 const anio = carro.a_o || '-';
 const totalImagenes = idsDrive.length;

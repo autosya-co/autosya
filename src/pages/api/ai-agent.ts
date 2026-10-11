@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { getFileContent, updateFileContent } from '../../lib/github';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request }) => {
     const { content, sha } = await getFileContent(filePath);
 
     // 2. Configuración para Google AI Studio (Gemini API)
-    const apiKey = config?.apiKey || import.meta.env.GEMINI_API_KEY;
+    const apiKey = config?.apiKey || import.meta.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Falta GEMINI_API_KEY' }), {
@@ -26,8 +26,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: config?.modelId || "gemini-1.5-flash" });
+    const ai = new GoogleGenAI({ apiKey });
+    const model = config?.modelId || "gemini-2.5-flash";
 
     const fullPrompt = `
       Eres un Agente Constructor experto en Astro 6 y Tailwind CSS 4.
@@ -48,9 +48,11 @@ export const POST: APIRoute = async ({ request }) => {
       4. Si la instrucción no es clara o no se puede realizar, retorna el código original sin cambios.
     `;
 
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const generatedCode = response.text().trim();
+    const result = await ai.models.generateContent({
+      model,
+      contents: fullPrompt,
+    });
+    const generatedCode = (result.text || '').trim();
 
     // Limpiar posibles bloques markdown si el modelo los incluyó a pesar de la instrucción
     const cleanCode = generatedCode.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, '');

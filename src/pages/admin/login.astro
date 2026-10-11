@@ -1,0 +1,108 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+---
+
+<Layout title="Acceso de Administrador | Autosya">
+  <Navbar />
+
+  <div class="min-h-[75vh] flex items-center justify-center px-4 py-12 bg-gray-50">
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
+      
+      <!-- Icono -->
+      <div class="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+        <i data-lucide="shield-check" class="w-8 h-8"></i>
+      </div>
+
+      <h1 class="text-2xl font-black text-gray-900 mb-2">Acceso Administrativo</h1>
+      <p class="text-sm text-gray-500 mb-8 leading-relaxed">
+        Ingresa con tu cuenta de administrador autorizada para gestionar inventario, publicaciones y configuración.
+      </p>
+
+      <!-- Botón Acceso Rápido 1-Clic -->
+      <button 
+        type="button" 
+        id="btnAccesoRapidoAdmin"
+        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-6 rounded-2xl transition shadow-lg shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer text-base mb-6">
+        <i data-lucide="key-round" class="w-5 h-5"></i>
+        <span>Entrar como Administrador</span>
+      </button>
+
+      <p class="text-xs text-gray-400 mb-6 font-mono">
+        Cuenta: autosya.co@gmail.com
+      </p>
+
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-3 text-gray-400 font-semibold">O ingresa otro correo</span></div>
+      </div>
+
+      <!-- Formulario alternativo -->
+      <form id="formAdminLoginManual" class="space-y-4">
+        <div>
+          <input 
+            type="email" 
+            id="correoManual" 
+            placeholder="correo@ejemplo.com"
+            required
+            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm font-medium"
+          />
+        </div>
+        <button 
+          type="submit" 
+          class="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          Ingresar con este correo
+        </button>
+      </form>
+
+      <div class="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
+        <a href="/" class="hover:text-red-600 transition flex items-center gap-1 font-medium">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver al inicio
+        </a>
+        <a href="/admin/configuracion" class="hover:text-red-600 transition font-medium">
+          Configuración
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <script is:inline>
+    const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+
+    function ejecutarLogin(email, nombre) {
+      const emailLimpio = (email || '').trim().toLowerCase();
+      if (!emailLimpio) return;
+
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userEmail', emailLimpio);
+      localStorage.setItem('userName', nombre || emailLimpio.split('@')[0]);
+
+      if (ADMIN_EMAILS.includes(emailLimpio)) {
+        localStorage.setItem('isAdmin', 'true');
+        document.documentElement.classList.add('is-admin');
+      } else {
+        localStorage.removeItem('isAdmin');
+      }
+      document.documentElement.classList.add('is-logged-in');
+
+      // Redirigir a configuración o a la página previa
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect') || '/admin/configuracion';
+      window.location.href = redirect;
+    }
+
+    document.getElementById('btnAccesoRapidoAdmin')?.addEventListener('click', () => {
+      ejecutarLogin('autosya.co@gmail.com', 'Admin Autosya');
+    });
+
+    document.getElementById('formAdminLoginManual')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('correoManual');
+      if (input && input.value) {
+        ejecutarLogin(input.value);
+      }
+    });
+  </script>
+</Layout>

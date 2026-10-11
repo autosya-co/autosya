@@ -18,6 +18,14 @@
     <!-- Campos -->
     <div class="p-5 overflow-y-auto flex-grow space-y-5">
 
+      <!-- Marca -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Marca</label>
+        <select id="filtroMarca" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none bg-gray-50 text-gray-800 font-medium text-sm">
+          <option value="">Cualquier Marca</option>
+        </select>
+      </div>
+
       <!-- Modelo -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Modelo</label>
@@ -103,16 +111,34 @@
 </div>
 
 <script is:inline>
-  // Correlación año ↔ modelo
+  // Correlación marca ↔ modelo y año ↔ modelo
   document.addEventListener('DOMContentLoaded', () => {
+    const selMarca = document.getElementById('filtroMarca');
     const selModelo = document.getElementById('filtroModelo');
     const selAnio = document.getElementById('filtroAnio');
 
+    function repoblarModelosPorMarca(marcaSel) {
+      if (!window.__filtroData) return;
+      const modelos = marcaSel
+        ? (window.__filtroData.modelosPorMarca[marcaSel] || [])
+        : window.__filtroData.todosModelos;
+      const cur = selModelo.value;
+      selModelo.innerHTML = '<option value="">Cualquier Modelo</option>';
+      [...modelos].sort().forEach(m => {
+        selModelo.insertAdjacentHTML('beforeend', `<option value="${m}"${m === cur ? ' selected' : ''}>${m}</option>`);
+      });
+    }
+
     function repoblarModelosPorAnio(anioSel) {
       if (!window.__filtroData) return;
-      const modelos = anioSel
+      const marcaSel = selMarca ? selMarca.value : '';
+      let modelos = anioSel
         ? (window.__filtroData.modelosPorAnio[anioSel] || [])
         : window.__filtroData.todosModelos;
+      if (marcaSel && window.__filtroData.modelosPorMarca[marcaSel]) {
+        const setMarca = new Set(window.__filtroData.modelosPorMarca[marcaSel]);
+        modelos = modelos.filter(m => setMarca.has(m));
+      }
       const cur = selModelo.value;
       selModelo.innerHTML = '<option value="">Cualquier Modelo</option>';
       [...modelos].sort().forEach(m => {
@@ -131,6 +157,11 @@
         selAnio.insertAdjacentHTML('beforeend', `<option value="${a}"${a === cur ? ' selected' : ''}>${a}</option>`);
       });
     }
+
+    selMarca?.addEventListener('change', function () {
+      repoblarModelosPorMarca(this.value);
+      if (typeof aplicarFiltros === 'function') aplicarFiltros();
+    });
 
     selModelo?.addEventListener('change', function () {
       repoblarAniosPorModelo(this.value);
