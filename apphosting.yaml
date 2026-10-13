@@ -4,7 +4,7 @@
 # Runtime environment
 runConfig:
   # The region to deploy the Cloud Run service.
-  region: us-central1
+  region: us-east4
   # The CPU and memory to allocate to each instance.
   cpu: 1
   memoryMiB: 512

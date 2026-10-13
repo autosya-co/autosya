@@ -2,7 +2,7 @@
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 
 const whatsappNumber = config.whatsapp || "573202832616";

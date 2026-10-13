@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY || (typeof process !== 'undefined' ? process.env.PUBLIC_FIREBASE_API_KEY : undefined) || 'AIzaSyD7Kcfxy-jAtrH69MWKWR3M8ft1LDmccso',
@@ -16,4 +17,5 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 // Especificamos el ID de la base de datos 'default' (sin paréntesis) que es el que tienes creado
 export const db = getFirestore(app, 'default');
+export const auth = getAuth(app);
 export default app;

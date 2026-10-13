@@ -4,7 +4,7 @@ import Navbar from '../../components/Navbar.astro';
 import { db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 ---
 
@@ -38,12 +38,12 @@ const config = configSnap.exists() ? configSnap.data() : {};
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Nombre del Negocio</label>
-            <input type="text" id="cfg_nombre" value={config.nombre || ''} placeholder="Ej: Toyota Usados Colombia"
+            <input type="text" id="cfg_nombre" value={config.nombre || ''} placeholder="Ej: Autosya"
               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Eslogan</label>
-            <input type="text" id="cfg_eslogan" value={config.eslogan || ''} placeholder="Ej: Tu aliado en Toyota usados"
+            <input type="text" id="cfg_eslogan" value={config.eslogan || ''} placeholder="Ej: Tu portal de compra y venta de autos usados en Colombia"
               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm" />
           </div>
           <div class="md:col-span-2">
@@ -109,6 +109,28 @@ const config = configSnap.exists() ? configSnap.data() : {};
             <input type="url" id="cfg_tiktok" value={config.tiktok || ''} placeholder="https://tiktok.com/..."
               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-500 focus:outline-none text-sm" />
           </div>
+        </div>
+      </div>
+
+      <!-- SEO y Google Search Console -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <span class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+            <i data-lucide="search" class="w-5 h-5 text-blue-600"></i>
+          </span>
+          Google Search Console & SEO
+        </h2>
+        <p class="text-xs text-gray-500 mb-5">
+          Verifica tu dominio autosya.co con Google Search Console pegando el código de la etiqueta meta o el valor del atributo content.
+        </p>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Código de Verificación (Meta Tag)</label>
+          <input type="text" id="cfg_google_site_verification" value={config.google_site_verification || ''} placeholder="Ej: abc123XYZ456... o <meta name='google-site-verification' content='...' />"
+            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-mono" />
+          <p class="text-[11px] text-gray-400 mt-1.5">
+            Una vez guardado, se incluirá automáticamente en la etiqueta &lt;head&gt; de todas las páginas para que Google valide la propiedad al instante.
+          </p>
         </div>
       </div>
 
@@ -179,6 +201,12 @@ const config = configSnap.exists() ? configSnap.data() : {};
       btn.classList.add('opacity-50');
       text.innerText = "Guardando...";
 
+      let rawVerification = document.getElementById('cfg_google_site_verification')?.value?.trim() || '';
+      const tagMatch = rawVerification.match(/content=["']([^"']+)["']/i);
+      if (tagMatch) {
+        rawVerification = tagMatch[1];
+      }
+
       const data = {
         nombre: document.getElementById('cfg_nombre').value.trim(),
         eslogan: document.getElementById('cfg_eslogan').value.trim(),
@@ -191,6 +219,7 @@ const config = configSnap.exists() ? configSnap.data() : {};
         instagram: document.getElementById('cfg_instagram').value.trim(),
         youtube: document.getElementById('cfg_youtube').value.trim(),
         tiktok: document.getElementById('cfg_tiktok').value.trim(),
+        google_site_verification: rawVerification,
         url_apps_script: document.getElementById('cfg_url_apps_script').value.trim(),
         watermark_url: document.getElementById('cfg_wm_url').value.trim(),
         watermark_scale: parseFloat(document.getElementById('cfg_wm_scale').value),
@@ -200,7 +229,7 @@ const config = configSnap.exists() ? configSnap.data() : {};
       };
 
       try {
-        await setDoc(doc(db, "configuracion", "negocio"), data, { merge: true });
+        await setDoc(doc(db, "configuracion", "autosya"), data, { merge: true });
         
         alerta.className = 'mb-6 p-4 rounded-xl text-center font-semibold text-sm bg-green-100 text-green-800';
         alerta.textContent = '✓ Configuración sincronizada con Firebase';

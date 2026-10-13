@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar.astro';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 const urlAppsScriptServer = config.url_apps_script || "";
 const wmConfig = {
@@ -15,7 +15,7 @@ const wmConfig = {
 };
 ---
 
-<Layout title="Añadir Toyota | Toyota Usados">
+<Layout title="Añadir Vehículo | Autosya">
   <script is:inline>
     // Proteger ruta: Exclusivo para usuarios logueados
     if (typeof localStorage !== 'undefined' && localStorage.getItem('isLoggedIn') !== 'true') {
@@ -45,9 +45,12 @@ const wmConfig = {
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700">Modelo</label>
-          <select id="modelo" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
+          <select id="modelo" required disabled class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-gray-100 disabled:cursor-not-allowed">
             <option value="">Seleccione primero una marca</option>
           </select>
+          <div id="contenedorOtroModelo" class="hidden mt-2">
+            <input type="text" id="otroModeloInput" placeholder="Escribe el modelo exacto" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 text-sm">
+          </div>
         </div>
       </div>
 
@@ -131,6 +134,72 @@ const wmConfig = {
     const URL_APPS_SCRIPT = urlAppsScriptServer || "https://script.google.com/macros/s/AKfycbzOu94N3mG5P7Z6jknzEnqtL1aDTKesxJ8jX2VgAdHw0doUeRdhr5X5O48COhhIcPy66g/exec";
     const URL_CSV_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUXSBa4HqBFoaoXLVQW8Pvh7BRTfIhc3K8fz9wqBZHrE3DM1oo-A5v-5vsB74osUxNYOD5zEFA60vF/pub?gid=1038341741&single=true&output=csv";
 
+    const CATALOGO_BASE = {
+      'Toyota': ['Hilux', 'Fortuner', 'Land Cruiser Prado', 'Land Cruiser 200', 'Land Cruiser 300', 'Corolla', 'Corolla Cross', 'RAV4', 'Yaris', 'Yaris Cross', '4Runner', 'FJ Cruiser', 'Rush', 'Camry', 'Sequoia', 'Tundra', 'Tacoma', 'Hiace'],
+      'Chevrolet': ['Tracker', 'Captiva', 'Captiva Sport', 'D-Max', 'Luv D-Max', 'Onix', 'Sail', 'Spark', 'Spark GT', 'Spark Life', 'Aveo', 'Aveo Emotion', 'Cruze', 'Equinox', 'Trailblazer', 'Tahoe', 'Colorado', 'Traverse', 'Camaro', 'Sonic', 'Optra'],
+      'Renault': ['Duster', 'Duster Oroch', 'Sandero', 'Sandero Stepway', 'Logan', 'Kwid', 'Koleos', 'Captur', 'Megane', 'Clio', 'Kangoo', 'Master', 'Twingo', 'Symbol', 'Alaskan'],
+      'Mazda': ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-3', 'CX-30', 'CX-5', 'CX-50', 'CX-9', 'CX-90', 'BT-50', 'Allegro'],
+      'Ford': ['Ranger', 'F-150', 'Escape', 'Explorer', 'EcoSport', 'Fiesta', 'Focus', 'Edge', 'Expedition', 'Bronco', 'Bronco Sport', 'Fusion'],
+      'Nissan': ['Frontier', 'Navara', 'NP300', 'Kicks', 'Qashqai', 'X-Trail', 'Versa', 'March', 'Sentra', 'Pathfinder', 'Patrol', 'Tiida', 'Murano'],
+      'Kia': ['Sportage', 'Sorento', 'Picanto', 'Rio', 'Cerato', 'Seltos', 'Sonet', 'Soul', 'Niro', 'Carnival', 'Carens'],
+      'Hyundai': ['Tucson', 'Santa Fe', 'Creta', 'Kona', 'Venue', 'Accent', 'Elantra', 'i10', 'Grand i10', 'i25', 'i30', 'H1', 'Palisade'],
+      'Volkswagen': ['Amarok', 'T-Cross', 'Taos', 'Tiguan', 'Nivus', 'Gol', 'Voyage', 'Polo', 'Virtus', 'Jetta', 'Golf', 'Saveiro', 'Teramont', 'Fox', 'CrossFox'],
+      'Suzuki': ['Jimny', 'Vitara', 'Grand Vitara', 'Swift', 'S-Cross', 'Baleno', 'Alto', 'Celerio', 'Ertiga', 'Fronx'],
+      'Mitsubishi': ['Montero', 'Montero Sport', 'L200', 'Sportero', 'Nativa', 'Outlander', 'ASX', 'Eclipse Cross', 'Pajero'],
+      'Jeep': ['Wrangler', 'Grand Cherokee', 'Cherokee', 'Compass', 'Renegade', 'Gladiator', 'Commander'],
+      'BMW': ['Serie 1', 'Serie 2', 'Serie 3', 'Serie 4', 'Serie 5', 'Serie 7', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'M3', 'M4'],
+      'Mercedes-Benz': ['Clase A', 'Clase C', 'Clase E', 'Clase S', 'CLA', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Clase G', 'Sprinter'],
+      'Audi': ['A1', 'A3', 'A4', 'A5', 'A6', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8'],
+      'Subaru': ['Forester', 'XV / Crosstrek', 'Outback', 'Impreza', 'WRX'],
+      'Honda': ['CR-V', 'HR-V', 'WR-V', 'Civic', 'City', 'Fit', 'Pilot', 'Accord'],
+      'BYD': ['Song Plus', 'Yuan Plus', 'Dolphin', 'Seal', 'Tang', 'Han', 'Qin Plus'],
+      'Chery': ['Tiggo', 'Tiggo 2', 'Tiggo 4', 'Tiggo 7', 'Tiggo 8'],
+      'JAC': ['JS2', 'JS4', 'JS8', 'T6', 'T8', 'T8 Pro'],
+      'Foton': ['Tunland', 'Tunland G7', 'View'],
+      'RAM': ['700', '1500', '2500', 'Rampage'],
+      'Volvo': ['XC40', 'XC60', 'XC90', 'V40', 'C40']
+    };
+
+    // Mapa interactivo marca -> Set(modelos)
+    window.__marcasModelosMap = {};
+    Object.keys(CATALOGO_BASE).forEach(m => {
+      window.__marcasModelosMap[m] = new Set(CATALOGO_BASE[m]);
+    });
+
+    function actualizarModelosPorMarca(marcaSel) {
+      const elModelo = document.getElementById('modelo');
+      const contenedorOtro = document.getElementById('contenedorOtroModelo');
+      const otroInput = document.getElementById('otroModeloInput');
+      if (!elModelo) return;
+
+      if (contenedorOtro) contenedorOtro.classList.add('hidden');
+      if (otroInput) { otroInput.value = ''; otroInput.required = false; }
+
+      if (!marcaSel) {
+        elModelo.innerHTML = '<option value="">Seleccione primero una marca</option>';
+        elModelo.disabled = true;
+        elModelo.classList.add('bg-gray-100', 'disabled:cursor-not-allowed');
+        elModelo.classList.remove('bg-white');
+        return;
+      }
+
+      // Buscar coincidencia exacta o insensible a mayúsculas
+      const keyFound = Object.keys(window.__marcasModelosMap).find(k => k.toLowerCase() === marcaSel.toLowerCase());
+      const modelosSet = keyFound ? window.__marcasModelosMap[keyFound] : new Set();
+      const modelos = Array.from(modelosSet).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+      elModelo.disabled = false;
+      elModelo.classList.remove('bg-gray-100', 'disabled:cursor-not-allowed');
+      elModelo.classList.add('bg-white');
+
+      let options = '<option value="">Seleccione Modelo</option>';
+      modelos.forEach(mod => {
+        options += `<option value="${mod}">${mod}</option>`;
+      });
+      options += '<option value="OTRO">+ Otro modelo (escribir)...</option>';
+      elModelo.innerHTML = options;
+    }
+
     async function cargarDatosDinámicos() {
       // Usamos el Papa global que viene del Layout
       if (typeof Papa === 'undefined') {
@@ -142,23 +211,23 @@ const wmConfig = {
       Papa.parse(URL_CSV_GOOGLE_SHEET, {
         download: true, header: true, 
         complete: function(results) {
-          const modelosPorMarca = {};
-          const marcas = new Set(['Toyota', 'Chevrolet', 'Renault', 'Mazda', 'Ford', 'Nissan', 'Kia', 'Hyundai', 'Volkswagen', 'Suzuki', 'Honda', 'Mitsubishi', 'BMW', 'Mercedes-Benz', 'Jeep']);
-          const todosModelos = new Set();
           const colores = new Set();
           const tipos = new Set();
           
           results.data.forEach(item => {
             if (item['Categorías']) {
               const partes = item['Categorías'].split('>');
-              const m = partes[0] ? partes[0].trim() : '';
-              const mod = partes.length > 1 ? partes[1].trim() : '';
-              if (m) {
-                marcas.add(m);
-                if (!modelosPorMarca[m]) modelosPorMarca[m] = new Set();
-                if (mod) {
-                  modelosPorMarca[m].add(mod);
-                  todosModelos.add(mod);
+              const rawMarca = partes[0] ? partes[0].trim() : '';
+              const rawModelo = partes.length > 1 ? partes[1].trim() : '';
+              if (rawMarca) {
+                // Normalizar o buscar marca existente
+                let matchedMarca = Object.keys(window.__marcasModelosMap).find(k => k.toLowerCase() === rawMarca.toLowerCase());
+                if (!matchedMarca) {
+                  matchedMarca = rawMarca.charAt(0).toUpperCase() + rawMarca.slice(1);
+                  window.__marcasModelosMap[matchedMarca] = new Set();
+                }
+                if (rawModelo) {
+                  window.__marcasModelosMap[matchedMarca].add(rawModelo);
                 }
               }
             }
@@ -166,23 +235,11 @@ const wmConfig = {
             if (item['tipo']) tipos.add(item['tipo'].trim());
           });
 
-          window.__modelosPorMarca = modelosPorMarca;
-          window.__todosModelos = Array.from(todosModelos).sort();
-          
-          llenarSelect('marca', Array.from(marcas).sort(), 'Seleccione Marca');
+          // Llenar marcas ordenadas
+          const todasMarcas = Object.keys(window.__marcasModelosMap).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+          llenarSelect('marca', todasMarcas, 'Seleccione Marca');
           llenarSelect('color', Array.from(colores).sort(), 'Seleccione Color');
           llenarSelect('tipo', Array.from(tipos).sort(), 'Seleccione Tipo');
-
-          const elMarca = document.getElementById('marca');
-          if (elMarca) {
-            elMarca.addEventListener('change', function() {
-              const marcaSel = this.value;
-              const mods = window.__modelosPorMarca && window.__modelosPorMarca[marcaSel]
-                ? Array.from(window.__modelosPorMarca[marcaSel]).sort()
-                : (window.__todosModelos || []);
-              llenarSelect('modelo', mods, mods.length > 0 ? 'Seleccione Modelo' : 'Escriba o seleccione modelo');
-            });
-          }
         }
       });
     }
@@ -191,6 +248,28 @@ const wmConfig = {
       const el = document.getElementById(id);
       if (el) el.innerHTML = `<option value="">${textoDefault}</option>` + array.map(item => `<option value="${item}">${item}</option>`).join('');
     }
+
+    // Inicializar eventos de Marca y Modelo
+    document.addEventListener('DOMContentLoaded', () => {
+      const elMarca = document.getElementById('marca');
+      const elModelo = document.getElementById('modelo');
+      const contenedorOtro = document.getElementById('contenedorOtroModelo');
+      const otroInput = document.getElementById('otroModeloInput');
+
+      elMarca?.addEventListener('change', function() {
+        actualizarModelosPorMarca(this.value);
+      });
+
+      elModelo?.addEventListener('change', function() {
+        if (this.value === 'OTRO') {
+          if (contenedorOtro) contenedorOtro.classList.remove('hidden');
+          if (otroInput) { otroInput.required = true; otroInput.focus(); }
+        } else {
+          if (contenedorOtro) contenedorOtro.classList.add('hidden');
+          if (otroInput) { otroInput.required = false; otroInput.value = ''; }
+        }
+      });
+    });
 
     // Ejecutar carga inicial
     cargarDatosDinámicos();
@@ -341,8 +420,22 @@ const wmConfig = {
           const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
           const isAdmin = (localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes(userEmail);
 
-          const marcaVal = (document.getElementById('marca')?.value || 'Toyota').trim();
-          const modeloVal = (document.getElementById('modelo')?.value || '').trim();
+          const marcaVal = (document.getElementById('marca')?.value || '').trim();
+          let modeloVal = (document.getElementById('modelo')?.value || '').trim();
+          if (modeloVal === 'OTRO') {
+            modeloVal = (document.getElementById('otroModeloInput')?.value || '').trim();
+          }
+
+          if (!marcaVal) {
+            alert("Por favor selecciona una marca.");
+            btn.disabled = false; btn.classList.remove('opacity-75'); spinner.classList.add('hidden');
+            return;
+          }
+          if (!modeloVal) {
+            alert("Por favor selecciona o especifica el modelo.");
+            btn.disabled = false; btn.classList.remove('opacity-75'); spinner.classList.add('hidden');
+            return;
+          }
 
           const payload = {
             titulo: document.getElementById('titulo').value,

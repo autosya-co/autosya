@@ -33,7 +33,7 @@ if (!idVehiculo) {
     errorMsg = "Error al conectar con la base de datos.";
   }
 }
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 const urlAppsScriptServer = config.url_apps_script || "";
 const wmConfig = {
@@ -44,7 +44,7 @@ const wmConfig = {
 };
 ---
 
-<Layout title="Editar Vehículo | Toyota Usados">
+<Layout title="Editar Vehículo | Autosya">
   <script is:inline>
     if (typeof localStorage !== 'undefined' && localStorage.getItem('isLoggedIn') !== 'true') {
       window.location.href = '/';
@@ -87,6 +87,9 @@ const wmConfig = {
             <select id="modelo" required class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 bg-white">
               <option value="">Cargando modelos...</option>
             </select>
+            <div id="contenedorOtroModelo" class="hidden mt-2">
+              <input type="text" id="otroModeloInput" placeholder="Escribe el modelo exacto" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 text-sm">
+            </div>
           </div>
         </div>
 
@@ -172,104 +175,171 @@ const wmConfig = {
     const galeria = document.getElementById('galeriaPrevia');
 
     if (formPublicar) {
-      async function cargarDatosDinámicos() {
-        if (typeof Papa === 'undefined') {
-          setTimeout(cargarDatosDinámicos, 500);
-          return;
-        }
+    const CATALOGO_BASE = {
+      'Toyota': ['Hilux', 'Fortuner', 'Land Cruiser Prado', 'Land Cruiser 200', 'Land Cruiser 300', 'Corolla', 'Corolla Cross', 'RAV4', 'Yaris', 'Yaris Cross', '4Runner', 'FJ Cruiser', 'Rush', 'Camry', 'Sequoia', 'Tundra', 'Tacoma', 'Hiace'],
+      'Chevrolet': ['Tracker', 'Captiva', 'Captiva Sport', 'D-Max', 'Luv D-Max', 'Onix', 'Sail', 'Spark', 'Spark GT', 'Spark Life', 'Aveo', 'Aveo Emotion', 'Cruze', 'Equinox', 'Trailblazer', 'Tahoe', 'Colorado', 'Traverse', 'Camaro', 'Sonic', 'Optra'],
+      'Renault': ['Duster', 'Duster Oroch', 'Sandero', 'Sandero Stepway', 'Logan', 'Kwid', 'Koleos', 'Captur', 'Megane', 'Clio', 'Kangoo', 'Master', 'Twingo', 'Symbol', 'Alaskan'],
+      'Mazda': ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-3', 'CX-30', 'CX-5', 'CX-50', 'CX-9', 'CX-90', 'BT-50', 'Allegro'],
+      'Ford': ['Ranger', 'F-150', 'Escape', 'Explorer', 'EcoSport', 'Fiesta', 'Focus', 'Edge', 'Expedition', 'Bronco', 'Bronco Sport', 'Fusion'],
+      'Nissan': ['Frontier', 'Navara', 'NP300', 'Kicks', 'Qashqai', 'X-Trail', 'Versa', 'March', 'Sentra', 'Pathfinder', 'Patrol', 'Tiida', 'Murano'],
+      'Kia': ['Sportage', 'Sorento', 'Picanto', 'Rio', 'Cerato', 'Seltos', 'Sonet', 'Soul', 'Niro', 'Carnival', 'Carens'],
+      'Hyundai': ['Tucson', 'Santa Fe', 'Creta', 'Kona', 'Venue', 'Accent', 'Elantra', 'i10', 'Grand i10', 'i25', 'i30', 'H1', 'Palisade'],
+      'Volkswagen': ['Amarok', 'T-Cross', 'Taos', 'Tiguan', 'Nivus', 'Gol', 'Voyage', 'Polo', 'Virtus', 'Jetta', 'Golf', 'Saveiro', 'Teramont', 'Fox', 'CrossFox'],
+      'Suzuki': ['Jimny', 'Vitara', 'Grand Vitara', 'Swift', 'S-Cross', 'Baleno', 'Alto', 'Celerio', 'Ertiga', 'Fronx'],
+      'Mitsubishi': ['Montero', 'Montero Sport', 'L200', 'Sportero', 'Nativa', 'Outlander', 'ASX', 'Eclipse Cross', 'Pajero'],
+      'Jeep': ['Wrangler', 'Grand Cherokee', 'Cherokee', 'Compass', 'Renegade', 'Gladiator', 'Commander'],
+      'BMW': ['Serie 1', 'Serie 2', 'Serie 3', 'Serie 4', 'Serie 5', 'Serie 7', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'M3', 'M4'],
+      'Mercedes-Benz': ['Clase A', 'Clase C', 'Clase E', 'Clase S', 'CLA', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Clase G', 'Sprinter'],
+      'Audi': ['A1', 'A3', 'A4', 'A5', 'A6', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8'],
+      'Subaru': ['Forester', 'XV / Crosstrek', 'Outback', 'Impreza', 'WRX'],
+      'Honda': ['CR-V', 'HR-V', 'WR-V', 'Civic', 'City', 'Fit', 'Pilot', 'Accord'],
+      'BYD': ['Song Plus', 'Yuan Plus', 'Dolphin', 'Seal', 'Tang', 'Han', 'Qin Plus'],
+      'Chery': ['Tiggo', 'Tiggo 2', 'Tiggo 4', 'Tiggo 7', 'Tiggo 8'],
+      'JAC': ['JS2', 'JS4', 'JS8', 'T6', 'T8', 'T8 Pro'],
+      'Foton': ['Tunland', 'Tunland G7', 'View'],
+      'RAM': ['700', '1500', '2500', 'Rampage'],
+      'Volvo': ['XC40', 'XC60', 'XC90', 'V40', 'C40']
+    };
 
-        Papa.parse(URL_CSV_GOOGLE_SHEET, {
-          download: true, header: true, 
-          complete: function(results) {
-            const modelosPorMarca = {};
-            const marcas = new Set(['Toyota', 'Chevrolet', 'Renault', 'Mazda', 'Ford', 'Nissan', 'Kia', 'Hyundai', 'Volkswagen', 'Suzuki', 'Honda', 'Mitsubishi', 'BMW', 'Mercedes-Benz', 'Jeep']);
-            const todosModelos = new Set();
-            const colores = new Set();
-            const tipos = new Set();
-            
-            results.data.forEach(item => {
-              if (item['Categorías']) {
-                const partes = item['Categorías'].split('>');
-                const m = partes[0] ? partes[0].trim() : '';
-                const mod = partes.length > 1 ? partes[1].trim() : '';
-                if (m) {
-                  marcas.add(m);
-                  if (!modelosPorMarca[m]) modelosPorMarca[m] = new Set();
-                  if (mod) {
-                    modelosPorMarca[m].add(mod);
-                    todosModelos.add(mod);
-                  }
+    window.__marcasModelosMap = {};
+    Object.keys(CATALOGO_BASE).forEach(m => {
+      window.__marcasModelosMap[m] = new Set(CATALOGO_BASE[m]);
+    });
+
+    function actualizarModelosPorMarca(marcaSel, modeloSeleccionado = '') {
+      const elModelo = document.getElementById('modelo');
+      const contenedorOtro = document.getElementById('contenedorOtroModelo');
+      const otroInput = document.getElementById('otroModeloInput');
+      if (!elModelo) return;
+
+      if (!marcaSel) {
+        elModelo.innerHTML = '<option value="">Seleccione primero una marca</option>';
+        elModelo.disabled = true;
+        elModelo.classList.add('bg-gray-100', 'disabled:cursor-not-allowed');
+        elModelo.classList.remove('bg-white');
+        if (contenedorOtro) contenedorOtro.classList.add('hidden');
+        if (otroInput) otroInput.value = '';
+        return;
+      }
+
+      const keyFound = Object.keys(window.__marcasModelosMap).find(k => k.toLowerCase() === marcaSel.toLowerCase());
+      const modelosSet = keyFound ? window.__marcasModelosMap[keyFound] : new Set();
+      const modelos = Array.from(modelosSet).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+      elModelo.disabled = false;
+      elModelo.classList.remove('bg-gray-100', 'disabled:cursor-not-allowed');
+      elModelo.classList.add('bg-white');
+
+      let options = '<option value="">Seleccione Modelo</option>';
+      let foundExact = false;
+      modelos.forEach(mod => {
+        const isSel = modeloSeleccionado && mod.toLowerCase() === modeloSeleccionado.toLowerCase();
+        if (isSel) foundExact = true;
+        options += `<option value="${mod}"${isSel ? ' selected' : ''}>${mod}</option>`;
+      });
+      options += `<option value="OTRO"${modeloSeleccionado && !foundExact ? ' selected' : ''}>+ Otro modelo (escribir)...</option>`;
+      elModelo.innerHTML = options;
+
+      if (modeloSeleccionado && !foundExact) {
+        if (contenedorOtro) contenedorOtro.classList.remove('hidden');
+        if (otroInput) { otroInput.value = modeloSeleccionado; otroInput.required = true; }
+      } else {
+        if (contenedorOtro) contenedorOtro.classList.add('hidden');
+        if (otroInput) { otroInput.value = ''; otroInput.required = false; }
+      }
+    }
+
+    async function cargarDatosDinámicos() {
+      if (typeof Papa === 'undefined') {
+        setTimeout(cargarDatosDinámicos, 500);
+        return;
+      }
+
+      Papa.parse(URL_CSV_GOOGLE_SHEET, {
+        download: true, header: true, 
+        complete: function(results) {
+          const colores = new Set();
+          const tipos = new Set();
+          
+          results.data.forEach(item => {
+            if (item['Categorías']) {
+              const partes = item['Categorías'].split('>');
+              const rawMarca = partes[0] ? partes[0].trim() : '';
+              const rawModelo = partes.length > 1 ? partes[1].trim() : '';
+              if (rawMarca) {
+                let matchedMarca = Object.keys(window.__marcasModelosMap).find(k => k.toLowerCase() === rawMarca.toLowerCase());
+                if (!matchedMarca) {
+                  matchedMarca = rawMarca.charAt(0).toUpperCase() + rawMarca.slice(1);
+                  window.__marcasModelosMap[matchedMarca] = new Set();
+                }
+                if (rawModelo) {
+                  window.__marcasModelosMap[matchedMarca].add(rawModelo);
                 }
               }
-              if (item['color_']) colores.add(item['color_'].trim());
-              if (item['tipo']) tipos.add(item['tipo'].trim());
-            });
-            
-            window.__modelosPorMarca = modelosPorMarca;
-            window.__todosModelos = Array.from(todosModelos).sort();
+            }
+            if (item['color_']) colores.add(item['color_'].trim());
+            if (item['tipo']) tipos.add(item['tipo'].trim());
+          });
+          
+          const todasMarcas = Object.keys(window.__marcasModelosMap).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+          llenarSelect('marca', todasMarcas, 'Seleccione Marca');
+          llenarSelect('color', Array.from(colores).sort(), 'Seleccione Color');
+          llenarSelect('tipo', Array.from(tipos).sort(), 'Seleccione Tipo');
 
-            llenarSelect('marca', Array.from(marcas).sort(), 'Seleccione Marca');
-            llenarSelect('color', Array.from(colores).sort(), 'Seleccione Color');
-            llenarSelect('tipo', Array.from(tipos).sort(), 'Seleccione Tipo');
+          // Seleccionar valores previos del vehículo
+          if (vehiculoAEditar) {
+            const marcaEl = document.getElementById('marca');
+            const colorEl = document.getElementById('color');
+            const tipoEl = document.getElementById('tipo');
 
-            const elMarca = document.getElementById('marca');
-            if (elMarca) {
-              elMarca.addEventListener('change', function() {
-                const marcaSel = this.value;
-                const mods = window.__modelosPorMarca && window.__modelosPorMarca[marcaSel]
-                  ? Array.from(window.__modelosPorMarca[marcaSel]).sort()
-                  : (window.__todosModelos || []);
-                llenarSelect('modelo', mods, mods.length > 0 ? 'Seleccione Modelo' : 'Escriba o seleccione modelo');
-              });
+            if (colorEl) colorEl.value = vehiculoAEditar.Color || vehiculoAEditar.color_ || "";
+            if (tipoEl) tipoEl.value = vehiculoAEditar.Tipo || vehiculoAEditar.tipo || "";
+
+            let vMarca = vehiculoAEditar.marca || vehiculoAEditar.Marca || "";
+            let vModelo = vehiculoAEditar.modelo || vehiculoAEditar.Modelo || "";
+            if (vehiculoAEditar['Categorías']) {
+              const partes = vehiculoAEditar['Categorías'].split('>');
+              if (partes.length > 0 && !vMarca) vMarca = partes[0].trim();
+              if (partes.length > 1 && !vModelo) vModelo = partes[1].trim();
             }
 
-            // Seleccionar valores previos
-            if (vehiculoAEditar) {
-              const marcaEl = document.getElementById('marca');
-              const modeloEl = document.getElementById('modelo');
-              const colorEl = document.getElementById('color');
-              const tipoEl = document.getElementById('tipo');
-
-              if (colorEl) colorEl.value = vehiculoAEditar.Color || vehiculoAEditar.color_ || "";
-              if (tipoEl) tipoEl.value = vehiculoAEditar.Tipo || vehiculoAEditar.tipo || "";
-
-              let vMarca = vehiculoAEditar.marca || vehiculoAEditar.Marca || "";
-              let vModelo = vehiculoAEditar.modelo || vehiculoAEditar.Modelo || "";
-              if (vehiculoAEditar['Categorías']) {
-                const partes = vehiculoAEditar['Categorías'].split('>');
-                if (partes.length > 0 && !vMarca) vMarca = partes[0].trim();
-                if (partes.length > 1 && !vModelo) vModelo = partes[1].trim();
-              }
-
-              if (marcaEl && vMarca) {
-                if (!Array.from(marcaEl.options).some(o => o.value.toLowerCase() === vMarca.toLowerCase())) {
-                  marcaEl.insertAdjacentHTML('beforeend', `<option value="${vMarca}" selected>${vMarca}</option>`);
-                }
-                marcaEl.value = vMarca;
-              }
-
-              const mods = vMarca && window.__modelosPorMarca && window.__modelosPorMarca[vMarca]
-                ? Array.from(window.__modelosPorMarca[vMarca]).sort()
-                : (window.__todosModelos || []);
-              llenarSelect('modelo', mods, 'Seleccione Modelo');
-
-              if (modeloEl && vModelo) {
-                if (!Array.from(modeloEl.options).some(o => o.value.toLowerCase() === vModelo.toLowerCase())) {
-                  modeloEl.insertAdjacentHTML('beforeend', `<option value="${vModelo}" selected>${vModelo}</option>`);
-                }
-                modeloEl.value = vModelo;
-              }
+            if (marcaEl && vMarca) {
+              const matchedM = Object.keys(window.__marcasModelosMap).find(k => k.toLowerCase() === vMarca.toLowerCase()) || vMarca;
+              marcaEl.value = matchedM;
+              actualizarModelosPorMarca(matchedM, vModelo);
             }
           }
-        });
-      }
+        }
+      });
+    }
 
-      function llenarSelect(id, array, textoDefault) {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = `<option value="">${textoDefault}</option>` + array.map(item => `<option value="${item}">${item}</option>`).join('');
-      }
+    function llenarSelect(id, array, textoDefault) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<option value="">${textoDefault}</option>` + array.map(item => `<option value="${item}">${item}</option>`).join('');
+    }
 
-      cargarDatosDinámicos();
+    document.addEventListener('DOMContentLoaded', () => {
+      const elMarca = document.getElementById('marca');
+      const elModelo = document.getElementById('modelo');
+      const contenedorOtro = document.getElementById('contenedorOtroModelo');
+      const otroInput = document.getElementById('otroModeloInput');
+
+      elMarca?.addEventListener('change', function() {
+        actualizarModelosPorMarca(this.value);
+      });
+
+      elModelo?.addEventListener('change', function() {
+        if (this.value === 'OTRO') {
+          if (contenedorOtro) contenedorOtro.classList.remove('hidden');
+          if (otroInput) { otroInput.required = true; otroInput.focus(); }
+        } else {
+          if (contenedorOtro) contenedorOtro.classList.add('hidden');
+          if (otroInput) { otroInput.required = false; otroInput.value = ''; }
+        }
+      });
+    });
+
+    cargarDatosDinámicos();
 
       let archivosAlmacenados = []; 
 
@@ -426,8 +496,22 @@ const wmConfig = {
           const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
           const isAdmin = (localStorage.getItem('isAdmin') === 'true') || ADMIN_EMAILS.includes((localStorage.getItem('userEmail') || "").trim().toLowerCase());
 
-          const marcaVal = (document.getElementById('marca')?.value || 'Toyota').trim();
-          const modeloVal = (document.getElementById('modelo')?.value || '').trim();
+          const marcaVal = (document.getElementById('marca')?.value || '').trim();
+          let modeloVal = (document.getElementById('modelo')?.value || '').trim();
+          if (modeloVal === 'OTRO') {
+            modeloVal = (document.getElementById('otroModeloInput')?.value || '').trim();
+          }
+
+          if (!marcaVal) {
+            alert("Por favor selecciona una marca.");
+            btn.disabled = false; btn.classList.remove('opacity-75'); spinner.classList.add('hidden');
+            return;
+          }
+          if (!modeloVal) {
+            alert("Por favor selecciona o especifica el modelo.");
+            btn.disabled = false; btn.classList.remove('opacity-75'); spinner.classList.add('hidden');
+            return;
+          }
 
           const payload = {
             accion: "editar",

@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar.astro';
 import { db } from '../lib/firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const urlAppsScriptServer = configSnap.exists() ? configSnap.data().url_apps_script : "";
 
 // Fetch all publications in SSR for more reliable filtering

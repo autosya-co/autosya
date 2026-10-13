@@ -1,13 +1,33 @@
 ---
 import '../styles/global.css';
+import Footer from '../components/Footer.astro';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface Props {
 	title: string;
+	description?: string;
+	image?: string;
 }
-import Footer from '../components/Footer.astro';
 
-const { title } = Astro.props;
+const { title, description, image } = Astro.props;
+
+let config: any = {};
+try {
+	const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
+	if (configSnap.exists()) {
+		config = configSnap.data();
+	}
+} catch (e) {
+	console.error("Error cargando configuración en Layout:", e);
+}
+
 const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
+const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || config.google_site_verification || '';
+
+const metaDescription = description || config.eslogan || "Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia.";
+const metaImage = image || config.logo || "https://lh3.googleusercontent.com/d/1M4xnozfvNODGNSpXfeiY1moBLY3CmKHj";
+const siteUrl = "https://autosya.co";
 ---
 
 <!doctype html>
@@ -16,7 +36,7 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || '733267797443-
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{title}</title>
-		<meta name="description" content="Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia." />
+		<meta name="description" content={metaDescription} />
 		<meta name="theme-color" content="#dc2626" />
 		<link rel="manifest" href="/manifest.json" />
 		<meta name="mobile-web-app-capable" content="yes" />
@@ -24,6 +44,43 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || '733267797443-
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<meta name="apple-mobile-web-app-title" content="Autosya" />
 		<link rel="apple-touch-icon" href="/favicon.svg" />
+		<link rel="canonical" href={siteUrl} />
+
+		<!-- Google Search Console Verification -->
+		{googleSiteVerification && (
+			<meta name="google-site-verification" content={googleSiteVerification} />
+		)}
+
+		<!-- OpenGraph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={metaDescription} />
+		<meta property="og:image" content={metaImage} />
+		<meta property="og:url" content={siteUrl} />
+		<meta property="og:site_name" content={config.nombre || "Autosya"} />
+
+		<!-- Twitter -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={metaDescription} />
+		<meta name="twitter:image" content={metaImage} />
+
+		<!-- Schema.org Structured Data -->
+		<script type="application/ld+json" set:html={JSON.stringify({
+			"@context": "https://schema.org",
+			"@type": "AutoDealer",
+			"name": config.nombre || "Autosya",
+			"url": "https://autosya.co",
+			"logo": metaImage,
+			"description": metaDescription,
+			"telephone": config.telefono || "+573202832616",
+			"address": {
+				"@type": "PostalAddress",
+				"streetAddress": config.direccion || "Calle 11A # 1E - 29 Caobos",
+				"addressLocality": "Cúcuta",
+				"addressCountry": "CO"
+			}
+		})} />
 		<!-- Imports for plugins previously loaded via CDN (Lucide, PapaParse, Sortable) -->
 		<!-- We load them from CDN as inline to keep the original logic untouched first, or use the node modules -->
 		<script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>

@@ -2,7 +2,7 @@
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const configSnap = await getDoc(doc(db, "configuracion", "negocio"));
+const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/1M4xnozfvNODGNSpXfeiY1moBLY3CmKHj";
 ---
