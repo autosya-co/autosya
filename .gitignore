@@ -1,0 +1,16 @@
+# build output
+dist/
+.astro/
+.apphosting/
+
+# dependencies
+node_modules/
+
+# environment variables
+.env.local
+.dev.env.json
+.dev.pid
+
+# OS files
+.DS_Store
+Thumbs.db

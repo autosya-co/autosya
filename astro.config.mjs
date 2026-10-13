@@ -1,6 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
+import node from '@apphosting/astro-adapter';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
