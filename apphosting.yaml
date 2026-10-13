@@ -17,10 +17,6 @@ runConfig:
 # PUBLIC_ variables will be available on the client and server.
 # Others will only be available on the server.
 env:
-  - variable: PORT
-    value: 8080
-  - variable: HOST
-    value: 0.0.0.0
   - variable: NODE_ENV
     value: production
   - variable: PUBLIC_FIREBASE_API_KEY
