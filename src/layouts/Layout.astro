@@ -109,7 +109,7 @@ const siteUrl = "https://autosya.co";
 				}
 			}
 
-			function handleCredentialResponse(response) {
+			async function handleCredentialResponse(response) {
 				try {
 					const token = response.credential;
 					const base64Url = token.split('.')[1];
@@ -119,33 +119,47 @@ const siteUrl = "https://autosya.co";
 					}).join(''));
 					
 					const payload = JSON.parse(jsonPayload);
+					const emailLimpio = (payload.email || '').toLowerCase().trim();
 					
-					// Guardamos sesión general
+					// Guardamos sesión general en localStorage
 					localStorage.setItem('isLoggedIn', 'true');
-					localStorage.setItem('userEmail', payload.email);
-					if (payload.name) localStorage.setItem('userName', payload.name);
+					localStorage.setItem('userEmail', emailLimpio);
+					localStorage.setItem('userName', payload.name || emailLimpio.split('@')[0]);
 					if (payload.picture) localStorage.setItem('userPicture', payload.picture);
 					document.documentElement.classList.add('is-logged-in');
 
 					// Validamos si es admin
-					if (window.ADMIN_EMAILS.includes(payload.email)) {
+					if (window.ADMIN_EMAILS && window.ADMIN_EMAILS.includes(emailLimpio)) {
 						localStorage.setItem('isAdmin', 'true');
 						document.documentElement.classList.add('is-admin');
 					} else {
 						localStorage.removeItem('isAdmin');
 					}
 
-					// Persistimos en Firestore (llamada a función global definida en script de módulo)
-					if (window.saveUserToFirestore) {
-						window.saveUserToFirestore(payload).then(() => {
-							window.location.reload();
-						});
-					} else {
-						// Fallback si el script del módulo no ha cargado (poco probable por el defer, pero por seguridad)
-						window.location.reload();
+					// Sincronizar credencial con Firebase Auth en segundo plano
+					if (window.auth && window.GoogleAuthProvider && window.signInWithCredential) {
+						try {
+							const cred = window.GoogleAuthProvider.credential(token);
+							await window.signInWithCredential(window.auth, cred);
+						} catch (authErr) {
+							console.warn("Aviso sincronización Firebase Auth:", authErr);
+						}
 					}
+
+					// Persistimos en Firestore en segundo plano (sin bloquear la recarga)
+					if (window.saveUserToFirestore) {
+						window.saveUserToFirestore({
+							email: emailLimpio,
+							name: payload.name || emailLimpio.split('@')[0],
+							picture: payload.picture || null
+						}).catch(console.warn);
+					}
+
+					// Recarga inmediata para mostrar la sesión activa
+					window.location.reload();
 				} catch(e) {
-					console.error("Error decodificando JWT:", e);
+					console.error("Error procesando One Tap:", e);
+					window.location.reload();
 				}
 			}
 
@@ -170,7 +184,7 @@ const siteUrl = "https://autosya.co";
 							email: trimmedEmail,
 							name: name || trimmedEmail.split('@')[0],
 							picture: null
-						});
+						}).catch(console.warn);
 					}
 					window.location.reload();
 				} catch(err) {
@@ -185,7 +199,7 @@ const siteUrl = "https://autosya.co";
 							client_id: window.GOOGLE_CLIENT_ID,
 							callback: handleCredentialResponse,
 							auto_select: false,
-							use_fedcm_for_prompt: false
+							use_fedcm_for_prompt: true
 						});
 
 						// Solo intentamos One Tap automático fuera de iframes si no hay sesión activa
@@ -220,7 +234,12 @@ const siteUrl = "https://autosya.co";
 		<script>
 			import { db, auth } from '../lib/firebase';
 			import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-			import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+			import { GoogleAuthProvider, signInWithPopup, signInWithCredential } from 'firebase/auth';
+
+			// Exponer al objeto window para interoperabilidad
+			window.auth = auth;
+			window.GoogleAuthProvider = GoogleAuthProvider;
+			window.signInWithCredential = signInWithCredential;
 
 			// Exponemos la función al objeto window para que el script inline de Auth pueda llamarla
 			window.saveUserToFirestore = async (payload) => {
