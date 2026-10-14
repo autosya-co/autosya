@@ -1,7 +1,7 @@
 {
-  "name": "Toyota Usados",
-  "short_name": "ToyotaUsados",
-  "description": "Compra, venta y consignación de vehículos Toyota usados en Colombia.",
+  "name": "Autosya",
+  "short_name": "Autosya",
+  "description": "Tu portal de compra y venta de autos usados en Colombia.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -15,8 +15,20 @@
       "purpose": "any maskable"
     },
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/favicon.ico",
-      "sizes": "64x64",
+      "sizes": "48x48 32x32 16x16",
       "type": "image/x-icon"
     }
   ],
