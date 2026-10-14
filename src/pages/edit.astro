@@ -37,7 +37,7 @@ const configSnap = await getDoc(doc(db, "configuracion", "autosya"));
 const config = configSnap.exists() ? configSnap.data() : {};
 const urlAppsScriptServer = config.url_apps_script || "";
 const wmConfig = {
-  url: config.watermark_url || '/marca_de_agua_autosya.png',
+  url: config.watermark_url || '/marca_de_agua_autosya1.png',
   scale: config.watermark_scale !== undefined ? config.watermark_scale : 0.22,
   opacity: config.watermark_opacity !== undefined ? config.watermark_opacity : 1.0,
   bottom: config.watermark_bottom !== undefined ? config.watermark_bottom : 20
