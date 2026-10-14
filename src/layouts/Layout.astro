@@ -22,7 +22,7 @@ try {
 	console.error("Error cargando configuración en Layout:", e);
 }
 
-const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
+const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || config.google_client_id || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || config.google_site_verification || '';
 
 const metaDescription = description || config.eslogan || "Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia.";
@@ -218,8 +218,9 @@ const siteUrl = "https://autosya.co";
 		</script>
 
 		<script>
-			import { db } from '../lib/firebase';
+			import { db, auth } from '../lib/firebase';
 			import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+			import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 			// Exponemos la función al objeto window para que el script inline de Auth pueda llamarla
 			window.saveUserToFirestore = async (payload) => {
@@ -233,6 +234,48 @@ const siteUrl = "https://autosya.co";
 					}, { merge: true });
 				} catch (e) {
 					console.error("Error guardando usuario en Firestore:", e);
+				}
+			};
+
+			// Inicio de sesión directo y nativo con Firebase Auth Google Popup
+			window.loginWithGoogleFirebase = async () => {
+				try {
+					const provider = new GoogleAuthProvider();
+					provider.setCustomParameters({ prompt: 'select_account' });
+					const result = await signInWithPopup(auth, provider);
+					const user = result.user;
+					const emailLimpio = (user.email || '').trim().toLowerCase();
+
+					localStorage.setItem('isLoggedIn', 'true');
+					localStorage.setItem('userEmail', emailLimpio);
+					localStorage.setItem('userName', user.displayName || emailLimpio.split('@')[0]);
+					if (user.photoURL) localStorage.setItem('userPicture', user.photoURL);
+
+					const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
+					if (ADMIN_EMAILS.includes(emailLimpio)) {
+						localStorage.setItem('isAdmin', 'true');
+						document.documentElement.classList.add('is-admin');
+					}
+					document.documentElement.classList.add('is-logged-in');
+
+					if (window.saveUserToFirestore) {
+						await window.saveUserToFirestore({
+							name: user.displayName,
+							email: emailLimpio,
+							picture: user.photoURL
+						});
+					}
+
+					window.location.reload();
+				} catch (error) {
+					console.error("Error en login con Google Firebase:", error);
+					if (error.code === 'auth/unauthorized-domain') {
+						alert("⚠️ Dominio no autorizado en Firebase:\n\nDebes agregar 'autosya.co' y 'www.autosya.co' en:\nConsola de Firebase > Authentication > Settings (Configuración) > Dominios autorizados.");
+					} else if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+						alert("⚠️ El proveedor de Google no está habilitado en Firebase Authentication.\nHabilítalo en:\nConsola de Firebase > Authentication > Sign-in method > Google.");
+					} else if (error.code !== 'auth/popup-closed-by-user') {
+						alert("Error al iniciar sesión: " + (error.message || error.code));
+					}
 				}
 			};
 		</script>
