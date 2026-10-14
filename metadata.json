@@ -1,6 +1,6 @@
 {
   "name": "Autosya",
-  "description": "Catálogo y gestión de vehículos usados Toyota Autosya",
+  "description": "Portal de compra y venta de autos usados en Colombia - AutosYa",
   "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

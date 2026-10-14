@@ -8,9 +8,11 @@ interface Props {
 	title: string;
 	description?: string;
 	image?: string;
+	url?: string;
+	type?: string;
 }
 
-const { title, description, image } = Astro.props;
+const { title, description, image, url, type } = Astro.props;
 
 let config: any = {};
 try {
@@ -25,9 +27,35 @@ try {
 const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || config.google_client_id || '308604847797-3cus32hvup377vnnqfe8sdeuhhdd8192.apps.googleusercontent.com';
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || config.google_site_verification || '';
 
-const metaDescription = description || config.eslogan || "Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia.";
-const metaImage = image || config.logo || "https://lh3.googleusercontent.com/d/1M4xnozfvNODGNSpXfeiY1moBLY3CmKHj";
 const siteUrl = "https://autosya.co";
+const currentPath = Astro.url.pathname;
+const canonicalUrl = url || (currentPath === '/' ? siteUrl : `${siteUrl}${currentPath}`);
+const pageType = type || "website";
+
+// Helper para convertir cualquier imagen o Drive ID en URL directa 200 para WhatsApp / OpenGraph
+function resolveOgImage(img?: string): string {
+	if (!img) return `${siteUrl}/logo-autosya.png`;
+	const thumbMatch = img.match(/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+	if (thumbMatch) {
+		return `https://lh3.googleusercontent.com/d/${thumbMatch[1]}=w1200`;
+	}
+	const dMatch = img.match(/\/d\/([a-zA-Z0-9_-]+)/);
+	if (dMatch) {
+		const cleanId = dMatch[1].split('=')[0];
+		return `https://lh3.googleusercontent.com/d/${cleanId}=w1200`;
+	}
+	if (/^[a-zA-Z0-9_-]{20,}$/.test(img)) {
+		return `https://lh3.googleusercontent.com/d/${img}=w1200`;
+	}
+	if (img.startsWith('/')) {
+		return `${siteUrl}${img}`;
+	}
+	return img;
+}
+
+const metaDescription = description || config.eslogan || "Tu portal de compra y venta de autos usados en Colombia. Encuentra tu vehículo ideal en AutosYa.";
+const rawImage = image || config.logo || "/logo-autosya.png";
+const ogImageUrl = resolveOgImage(rawImage);
 ---
 
 <!doctype html>
@@ -42,40 +70,48 @@ const siteUrl = "https://autosya.co";
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="Autosya" />
+		<meta name="apple-mobile-web-app-title" content="AutosYa" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
 		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 		<link rel="shortcut icon" href="/favicon.ico" />
 		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-		<link rel="canonical" href={siteUrl} />
+		<link rel="canonical" href={canonicalUrl} />
 
 		<!-- Google Search Console Verification -->
 		{googleSiteVerification && (
 			<meta name="google-site-verification" content={googleSiteVerification} />
 		)}
 
-		<!-- OpenGraph / Facebook -->
-		<meta property="og:type" content="website" />
+		<!-- OpenGraph / Facebook / WhatsApp -->
+		<meta property="og:site_name" content="AutosYa" />
+		<meta property="og:type" content={pageType} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={metaDescription} />
-		<meta property="og:image" content={metaImage} />
-		<meta property="og:url" content={siteUrl} />
-		<meta property="og:site_name" content={config.nombre || "Autosya"} />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:image" content={ogImageUrl} />
+		<meta property="og:image:secure_url" content={ogImageUrl} />
+		<meta property="og:image:type" content="image/jpeg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={title} />
 
-		<!-- Twitter -->
+		<!-- Twitter / X -->
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={metaDescription} />
-		<meta name="twitter:image" content={metaImage} />
+		<meta name="twitter:image" content={ogImageUrl} />
+
+		<slot name="head" />
 
 		<!-- Schema.org Structured Data -->
 		<script type="application/ld+json" set:html={JSON.stringify({
 			"@context": "https://schema.org",
 			"@type": "AutoDealer",
-			"name": config.nombre || "Autosya",
+			"name": "AutosYa",
 			"url": "https://autosya.co",
-			"logo": metaImage,
+			"logo": `${siteUrl}/logo-autosya.png`,
+			"image": ogImageUrl,
 			"description": metaDescription,
 			"telephone": config.telefono || "+573202832616",
 			"address": {

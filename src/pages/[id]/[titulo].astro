@@ -46,15 +46,20 @@ if (carro.Images) {
   idsDrive = carro.Images.split('|').map((id: string) => id.trim()).filter((id: string) => id !== '');
 }
 
-const mensaje = encodeURIComponent(`Hola, estoy interesado en el vehículo *${carro.Title}* que vi en autosya.co.`);
+const slugify = (t: any) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
+const canonicalUrl = `https://autosya.co/${carro.ID}/${slugify(carro.Title)}`;
+
+const mensaje = encodeURIComponent(`Hola, estoy interesado en el vehículo *${carro.Title}* que vi en autosya.co: ${canonicalUrl}`);
 const urlWhatsapp = 'https://wa.me/573202832616?text=' + mensaje;
-const anio = carro.a_o || '-';
+const anio = carro.a_o || carro.Anio || carro.Año || '-';
 const totalImagenes = idsDrive.length;
-const descripcionMeta = `${carro.Title} — ${anio}, ${formatearKm(carro.Mileage)}, ${carro.Transmission || ''} ${carro['Fuel'] || ''}. Precio: ${formatearDinero(carro.Price)}. Toyota Usados Colombia.`;
+const descripcionMeta = `${carro.Title} — Modelo ${anio}, ${formatearKm(carro.Mileage)}, ${carro.Transmission || ''} ${carro['Fuel'] || ''}. Precio: ${formatearDinero(carro.Price)}. AutosYa Colombia.`;
+
+// Imagen de portada principal directa para WhatsApp y redes sociales (OpenGraph)
+const primeraImagenDrive = idsDrive[0] || '';
+const portadaOg = primeraImagenDrive ? `https://lh3.googleusercontent.com/d/${primeraImagenDrive}=w1200` : 'https://autosya.co/logo-autosya.png';
 
 // Obtener vehículos relacionados (Random de los últimos 25)
-const slugify = (t: any) => t ? t.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^\w\-]+/g,'').replace(/\-\-+/g,'-') : 'auto';
-
 let relacionados: any[] = [];
 try {
   const qRel = query(
@@ -79,14 +84,13 @@ try {
 }
 ---
 
-<Layout title={`${carro.Title} | Toyota Usados`}>
-  <Fragment slot="head">
-    <meta name="description" content={descripcionMeta} />
-    <meta property="og:title" content={`${carro.Title} | Toyota Usados`} />
-    <meta property="og:description" content={descripcionMeta} />
-    {idsDrive[0] && <meta property="og:image" content={`https://drive.google.com/thumbnail?id=${idsDrive[0]}&sz=w1200`} />}
-    <meta property="og:type" content="product" />
-  </Fragment>
+<Layout 
+  title={`${carro.Title} | AutosYa`}
+  description={descripcionMeta}
+  image={portadaOg}
+  url={canonicalUrl}
+  type="product"
+>
 
   <Navbar />
   
@@ -259,14 +263,28 @@ try {
             {carro.Content || 'Sin descripción adicional.'}
           </div>
 
-          <!-- Botón de Acción -->
-          <a
-            href={urlWhatsapp}
-            target="_blank"
-            class="mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 w-full text-lg group">
-            <span class="transition-transform group-hover:scale-110">💬</span>
-            Contactar Vendedor
-          </a>
+          <!-- Botones de Acción -->
+          <div class="mt-auto space-y-3 pt-6">
+            <a
+              href={urlWhatsapp}
+              target="_blank"
+              class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full text-lg group">
+              <span class="transition-transform group-hover:scale-110">💬</span>
+              Contactar Vendedor
+            </a>
+
+            <!-- Botón Compartir -->
+            <button
+              id="btnCompartirVehiculo"
+              type="button"
+              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 px-6 rounded-2xl transition-all flex items-center justify-center gap-2.5 border border-gray-200 cursor-pointer shadow-sm hover:shadow"
+              data-title={`${carro.Title} | AutosYa`}
+              data-text={`Mira este ${carro.Title} (${anio}) en AutosYa por ${formatearDinero(carro.Price)}`}
+              data-url={canonicalUrl}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
+              <span>Compartir Vehículo</span>
+            </button>
+          </div>
         </div>
 
     </div>
@@ -295,7 +313,7 @@ try {
       <!-- Track Horizontal Scroll -->
       <div id="relTrack" class="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 scrollbar-hide scroll-smooth no-scrollbar">
         {relacionados.map((rel) => {
-          let relImg = 'https://via.placeholder.com/400x300?text=Toyota';
+          let relImg = 'https://via.placeholder.com/400x300?text=AutosYa';
           if (rel.Images) {
             const firstId = rel.Images.split('|')[0]?.trim();
             if (firstId) relImg = `https://drive.google.com/thumbnail?id=${firstId}&sz=w400`;
@@ -528,6 +546,47 @@ try {
       let interval = setInterval(() => updateGallery(current + 1), 7000);
       const stopInterval = () => { if(interval) { clearInterval(interval); interval = null; } };
       [track, lbTrack, ...thumbBtns].forEach(el => el?.addEventListener('click', stopInterval, {once: true}));
+
+      // Compartir vehículo
+      const btnCompartir = document.getElementById('btnCompartirVehiculo');
+      if (btnCompartir) {
+        btnCompartir.addEventListener('click', async () => {
+          const title = btnCompartir.dataset.title || document.title;
+          const text = btnCompartir.dataset.text || '';
+          const shareUrl = btnCompartir.dataset.url || window.location.href;
+
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: title,
+                text: `${text}\n${shareUrl}`,
+                url: shareUrl
+              });
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.warn("Share cancelado o error:", err);
+              }
+            }
+          } else {
+            // Fallback para navegadores de escritorio: copiar enlace al portapapeles
+            try {
+              await navigator.clipboard.writeText(shareUrl);
+              const label = btnCompartir.querySelector('span');
+              if (label) {
+                const textoOriginal = label.innerText;
+                label.innerText = '¡Enlace copiado!';
+                btnCompartir.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+                setTimeout(() => {
+                  label.innerText = textoOriginal;
+                  btnCompartir.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
+                }, 2500);
+              }
+            } catch (copyErr) {
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + '\n' + shareUrl)}`, '_blank');
+            }
+          }
+        });
+      }
     }
   </script>
 </Layout>
