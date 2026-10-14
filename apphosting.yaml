@@ -33,3 +33,5 @@ env:
     value: "1:308604847797:web:f8e583ee15c785546ee0fc"
   - variable: PUBLIC_FIREBASE_MEASUREMENT_ID
     value: "G-GVW40Q3LX2"
+  - variable: PUBLIC_GOOGLE_CLIENT_ID
+    value: "308604847797-3cus32hvup377vnnqfe8sdeuhhdd8192.apps.googleusercontent.com"

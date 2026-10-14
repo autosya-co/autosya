@@ -22,7 +22,7 @@ try {
 	console.error("Error cargando configuración en Layout:", e);
 }
 
-const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || config.google_client_id || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
+const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID || config.google_client_id || '308604847797-3cus32hvup377vnnqfe8sdeuhhdd8192.apps.googleusercontent.com';
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || config.google_site_verification || '';
 
 const metaDescription = description || config.eslogan || "Encuentra tu vehículo usado ideal en Autosya. Compra, venta, consignación, permuta y financiación en Colombia.";
@@ -97,7 +97,7 @@ const siteUrl = "https://autosya.co";
 		<script is:inline>
 			// Global auth configuration
 			window.ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
-			window.GOOGLE_CLIENT_ID = document.getElementById('cfgGoogleClientId')?.getAttribute('content') || '733267797443-c7qf50rp48h73cvameiu5ukj3ma9p9t8.apps.googleusercontent.com';
+			window.GOOGLE_CLIENT_ID = document.getElementById('cfgGoogleClientId')?.getAttribute('content') || '308604847797-3cus32hvup377vnnqfe8sdeuhhdd8192.apps.googleusercontent.com';
 
 			// Check auth state immediately to prevent flicker
 			if (typeof localStorage !== 'undefined') {
