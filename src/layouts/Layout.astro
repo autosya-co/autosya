@@ -235,7 +235,7 @@ const ogImageUrl = resolveOgImage(rawImage);
 							client_id: window.GOOGLE_CLIENT_ID,
 							callback: handleCredentialResponse,
 							auto_select: false,
-							use_fedcm_for_prompt: true
+							use_fedcm_for_prompt: false
 						});
 
 						// Solo intentamos One Tap automático fuera de iframes si no hay sesión activa
@@ -274,6 +274,7 @@ const ogImageUrl = resolveOgImage(rawImage);
 
 			// Exponer al objeto window para interoperabilidad
 			window.auth = auth;
+			window.db = db;
 			window.GoogleAuthProvider = GoogleAuthProvider;
 			window.signInWithCredential = signInWithCredential;
 

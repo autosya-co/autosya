@@ -1,7 +1,27 @@
 ---
-export const prerender = true;
+export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+let initialUsuarios: any[] = [];
+try {
+  const q = query(collection(db, "usuarios"), orderBy("ultimoAcceso", "desc"));
+  const snap = await getDocs(q);
+  initialUsuarios = snap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      nombre: data.nombre || '',
+      email: data.email || '',
+      foto: data.foto || null,
+      ultimoAcceso: data.ultimoAcceso?.toDate ? data.ultimoAcceso.toDate().toISOString() : null
+    };
+  });
+} catch (e) {
+  console.warn("Aviso cargando usuarios en SSR:", e);
+}
 ---
 
 <Layout title="Gestión de Usuarios">
@@ -88,22 +108,40 @@ import Navbar from '../../components/Navbar.astro';
     </div>
   </div>
 
-  <script>
-    import { db } from '../../lib/firebase';
-    import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-
+  <script define:vars={{ initialUsuarios }}>
     const ADMIN_EMAILS = ['autosya.co@gmail.com', 'autosyacucuta@gmail.com', 'jjpr79@gmail.com'];
-    let todosUsuarios = [];
+    let todosUsuarios = (initialUsuarios && Array.isArray(initialUsuarios)) ? [...initialUsuarios] : [];
 
     async function cargarUsuarios() {
       try {
-        const q = query(collection(db, "usuarios"), orderBy("ultimoAcceso", "desc"));
-        const snapshot = await getDocs(q);
-        
-        todosUsuarios = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        if (todosUsuarios.length > 0) {
+          const loadingEl = document.getElementById('loading');
+          if (loadingEl) loadingEl.classList.add('hidden');
+          renderTabla(todosUsuarios);
+          const totalEl = document.getElementById('totalUsuarios');
+          if (totalEl) totalEl.textContent = todosUsuarios.length.toString();
+          const containerEl = document.getElementById('tablaContainer');
+          if (containerEl) containerEl.classList.remove('hidden');
+          // @ts-ignore
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        // Intento con Firestore client si el servidor no trajo datos
+        const firestoreDb = window.db;
+        if (firestoreDb && window.auth) {
+          const { collection, getDocs, query, orderBy } = await import('firebase/firestore');
+          const q = query(collection(firestoreDb, "usuarios"), orderBy("ultimoAcceso", "desc"));
+          const snapshot = await getDocs(q);
+          todosUsuarios = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              ultimoAcceso: data.ultimoAcceso?.toDate ? data.ultimoAcceso.toDate().toISOString() : null
+            };
+          });
+        }
 
         const loadingEl = document.getElementById('loading');
         if (loadingEl) loadingEl.classList.add('hidden');
@@ -125,9 +163,13 @@ import Navbar from '../../components/Navbar.astro';
         // @ts-ignore
         if (window.lucide) window.lucide.createIcons();
       } catch (error) {
-        console.error("Error cargando usuarios:", error);
+        console.warn("Aviso cargando usuarios:", error);
         const loadingEl = document.getElementById('loading');
-        if (loadingEl) loadingEl.innerHTML = '<p class="text-red-500 font-bold text-center py-10">Error al cargar datos de Firestore</p>';
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (todosUsuarios.length === 0) {
+          const vacioEl = document.getElementById('estadoVacio');
+          if (vacioEl) vacioEl.classList.remove('hidden');
+        }
       }
     }
 

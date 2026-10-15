@@ -311,7 +311,7 @@ try {
       </div>
 
       <!-- Track Horizontal Scroll -->
-      <div id="relTrack" class="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 scrollbar-hide scroll-smooth no-scrollbar">
+      <div id="relTrack" class="flex overflow-x-auto snap-x snap-mandatory gap-3.5 md:gap-5 pb-6 scrollbar-hide scroll-smooth no-scrollbar -mx-2 px-2 sm:mx-0 sm:px-0">
         {relacionados.map((rel) => {
           let relImg = 'https://via.placeholder.com/400x300?text=AutosYa';
           if (rel.Images) {
@@ -322,7 +322,7 @@ try {
           const relAnio = rel.a_o || rel.Anio || rel.Año || '-';
           
           return (
-            <a href={relSlug} class="min-w-[75%] md:min-w-[calc(25%-15px)] flex-shrink-0 snap-start group">
+            <a href={relSlug} class="w-[60%] min-w-[60%] max-w-[60%] md:w-auto md:min-w-[calc(25%-15px)] md:max-w-none flex-shrink-0 snap-start group">
               <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full ring-1 ring-gray-900/5">
                 <!-- Imagen -->
                 <div class="aspect-[4/3] relative overflow-hidden bg-gray-100">
@@ -331,15 +331,15 @@ try {
                 </div>
                 
                 <!-- Info -->
-                <div class="p-5 flex flex-col flex-grow">
-                  <h4 class="font-bold text-gray-900 text-sm line-clamp-2 mb-2 group-hover:text-red-700 transition-colors">
+                <div class="p-3.5 sm:p-5 flex flex-col flex-grow">
+                  <h4 class="font-bold text-gray-900 text-xs sm:text-sm line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-red-700 transition-colors leading-tight">
                     {rel.Title}
                   </h4>
-                  <div class="mt-auto">
-                    <div class="text-lg font-black text-red-700 mb-1">
+                  <div class="mt-auto pt-1">
+                    <div class="text-base sm:text-lg font-black text-red-700 mb-1">
                       {formatearDinero(rel.Price)}
                     </div>
-                    <div class="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                       <span>{relAnio}</span>
                       <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
                       <span>{formatearKm(rel.Mileage)}</span>
@@ -488,16 +488,18 @@ try {
           relTrack.scrollBy({ left: -320, behavior: 'smooth' });
         });
         relNext.addEventListener('click', () => {
-          relTrack.scrollBy({ left: 320, behavior: 'smooth' });
+          const step = relTrack.clientWidth < 768 ? relTrack.clientWidth * 0.64 : 320;
+          relTrack.scrollBy({ left: step, behavior: 'smooth' });
         });
 
         // Movimiento Automático
         let autoScroll = setInterval(() => {
           const maxScroll = relTrack.scrollWidth - relTrack.clientWidth;
+          const step = relTrack.clientWidth < 768 ? relTrack.clientWidth * 0.64 : 320;
           if (relTrack.scrollLeft >= maxScroll - 10) {
             relTrack.scrollTo({ left: 0, behavior: 'smooth' });
           } else {
-            relTrack.scrollBy({ left: 320, behavior: 'smooth' });
+            relTrack.scrollBy({ left: step, behavior: 'smooth' });
           }
         }, 5000);
 
