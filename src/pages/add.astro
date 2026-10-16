@@ -19,8 +19,7 @@ const wmConfig = {
   <script is:inline>
     // Proteger ruta: Exclusivo para usuarios logueados
     if (typeof localStorage !== 'undefined' && localStorage.getItem('isLoggedIn') !== 'true') {
-      sessionStorage.setItem('redirectAfterLogin', '/add');
-      window.location.href = '/?auth=login';
+      window.location.href = '/';
     }
   </script>
   <Navbar />

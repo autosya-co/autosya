@@ -191,14 +191,8 @@ const ogImageUrl = resolveOgImage(rawImage);
 						}).catch(console.warn);
 					}
 
-					// Redirección si venía de hacer clic en "Publica Gratis" o recarga
-					const targetUrl = sessionStorage.getItem('redirectAfterLogin');
-					if (targetUrl) {
-						sessionStorage.removeItem('redirectAfterLogin');
-						window.location.href = targetUrl;
-					} else {
-						window.location.reload();
-					}
+					// Recarga inmediata para mostrar la sesión activa
+					window.location.reload();
 				} catch(e) {
 					console.error("Error procesando One Tap:", e);
 					window.location.reload();
@@ -228,14 +222,7 @@ const ogImageUrl = resolveOgImage(rawImage);
 							picture: null
 						}).catch(console.warn);
 					}
-
-					const targetUrl = sessionStorage.getItem('redirectAfterLogin');
-					if (targetUrl) {
-						sessionStorage.removeItem('redirectAfterLogin');
-						window.location.href = targetUrl;
-					} else {
-						window.location.reload();
-					}
+					window.location.reload();
 				} catch(err) {
 					console.error("Error al iniciar sesión:", err);
 				}
@@ -335,13 +322,7 @@ const ogImageUrl = resolveOgImage(rawImage);
 						});
 					}
 
-					const targetUrl = sessionStorage.getItem('redirectAfterLogin');
-					if (targetUrl) {
-						sessionStorage.removeItem('redirectAfterLogin');
-						window.location.href = targetUrl;
-					} else {
-						window.location.reload();
-					}
+					window.location.reload();
 				} catch (error) {
 					console.error("Error en login con Google Firebase:", error);
 					if (error.code === 'auth/unauthorized-domain') {

@@ -265,35 +265,10 @@ const logoUrl = config.logo || "https://lh3.googleusercontent.com/d/1M4xnozfvNOD
         document.body.style.overflow = '';
       }
 
-      window.openLoginModal = openLoginModal;
-      window.closeLoginModal = closeLoginModal;
-
       if (closeLoginModalBtn) closeLoginModalBtn.addEventListener('click', closeLoginModal);
       if (loginModalOverlay) loginModalOverlay.addEventListener('click', closeLoginModal);
 
       window.addEventListener('google-auth-ready', renderGoogleButton);
-
-      // Interceptar cualquier botón de "Publica Gratis" o enlace a /add si no ha iniciado sesión
-      document.addEventListener('click', (e) => {
-        const target = (e.target as HTMLElement)?.closest('a[href="/add"], a[href="/add/"], [data-require-login="true"]');
-        if (target) {
-          const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-          if (!isLoggedIn) {
-            e.preventDefault();
-            e.stopPropagation();
-            sessionStorage.setItem('redirectAfterLogin', '/add');
-            openLoginModal();
-          }
-        }
-      });
-
-      // Si la URL viene con ?auth=login y el usuario no está logueado, abrir modal automáticamente
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('auth') === 'login' && localStorage.getItem('isLoggedIn') !== 'true') {
-          openLoginModal();
-        }
-      } catch(e) {}
 
       if (userBtn) {
         userBtn.addEventListener('click', () => {
